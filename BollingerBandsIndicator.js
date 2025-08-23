@@ -97,4 +97,4 @@ class BollingerBandsIndicator {
         if (this.upperBandSeries) this.mainChart.removeSeries(this.upperBandSeries);
         if (this.lowerBandSeries) this.mainChart.removeSeries(this.lowerBandSeries);
     }
-}
+} 

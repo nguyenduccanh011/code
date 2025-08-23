@@ -287,18 +287,33 @@ function onCrosshairMoved(param, sourceChart) {
 
 function animationLoop() {
     if (trendLineRedrawRequested) {
-        if (currentDrawingTarget) {
-            // Lấy dữ liệu từ series của đúng chart đang vẽ
-            const data = currentDrawingTarget.series.data();
-            if (data.length > 0) {
-                 currentDrawingTarget.series.update(data[data.length - 1]);
-            }
+        // Chỉ ra lệnh vẽ lại cho ĐÚNG BIỂU ĐỒ đang được tương tác
+        if (currentDrawingTarget && currentDrawingTarget.chart) {
+            currentDrawingTarget.chart.priceScale('').applyOptions({});
+        } else {
+            // Trường hợp dự phòng, nếu không rõ mục tiêu thì cập nhật biểu đồ chính
+            mainChart.priceScale('').applyOptions({});
         }
+        
         trendLineRedrawRequested = false;
     }
 }
 
-drawTrendLineBtn.addEventListener('click', () => { /* Giữ nguyên */ });
+drawTrendLineBtn.addEventListener('click', () => {
+    isDrawingTrendLine = !isDrawingTrendLine;
+    drawTrendLineBtn.classList.toggle('active', isDrawingTrendLine);
+    
+    // Nếu người dùng tắt chế độ vẽ giữa chừng,
+    // chúng ta cần dọn dẹp và reset trạng thái.
+    if (!isDrawingTrendLine) {
+        trendLinePoints = [];
+        if (previewTrendLine && currentDrawingTarget) {
+            currentDrawingTarget.series.detachPrimitive(previewTrendLine);
+            previewTrendLine = null;
+            currentDrawingTarget = null;
+        }
+    }
+});
 
 // Gắn sự kiện click cho biểu đồ chính
 mainChart.subscribeClick(param => onChartClicked(param, { chart: mainChart, series: mainSeries, id: 'main' }));
