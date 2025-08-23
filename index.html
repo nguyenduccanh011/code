@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Biểu đồ Chứng khoán</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+    <div class="container">
+        <header class="header">
+            <div class="left-header">
+                <div class="symbol-info">
+                    <strong>VNINDEX</strong>
+                    <span>Chỉ số VN-Index, Sàn Giao dịch Chứng khoán TPHCM</span>
+                </div>
+                <div class="ohlc-info">
+                    </div>
+                </div>
+            <div class="right-header"> <div class="tools-selector">
+                <div class="indicator-menu">
+    <button class="tool-button" id="indicator-menu-btn">Chỉ báo</button>
+    <div class="indicator-dropdown" id="indicator-dropdown-content">
+        <a href="#" data-indicator="rsi">RSI (14)</a>
+         <a href="#" data-indicator="macd">MACD (12, 26, 9)</a>
+         <a href="#" data-indicator="bb">Bollinger Bands (20, 2)</a> 
+        </div>
+</div>
+            </div>
+            <div class="timeframe-selector">
+                <button class="timeframe-button active">D</button>
+                <button class="timeframe-button">W</button>
+                <button class="timeframe-button">M</button>
+            </div>
+        </header>
+        <aside class="left-toolbar">TOOLBAR</aside>
+        
+        <main class="main-chart"> <div id="main-chart-container"></div> <div id="rsi-chart-container"></div> </main>
+        
+        <aside class="right-sidebar">SIDEBAR</aside>
+    </div>
+
+    <script src="https://unpkg.com/lightweight-charts@4.1.0/dist/lightweight-charts.standalone.production.js"></script>
+    <script src="ChartSyncManager.js"></script>
+    <script src="MACDIndicator.js"></script>
+    <script src="BollingerBandsIndicator.js"></script>
+    <script src="RSIIndicator.js"></script>
+    <script src="script.js"></script>
+
+</body>
+</html>
