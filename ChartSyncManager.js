@@ -3,47 +3,44 @@
 class ChartSyncManager {
     constructor() {
         this.charts = [];
-        this.isSyncing = false; // Flag to prevent infinite loops
+        this.isSyncing = false;
     }
 
     addChart(chart, series) {
         const chartRecord = { chart, series };
         this.charts.push(chartRecord);
 
-        // --- Attach Listeners ---
+        // Manager sẽ quản lý cả hai loại đồng bộ
+        chart.subscribeCrosshairMove(param => this._syncCrosshair(param, chart));
+        chart.timeScale().subscribeVisibleLogicalRangeChange(range => this._syncTimeScale(range, chart));
+    }
+    
+    _syncCrosshair(param, sourceChart) {
+        if (!param.point || !param.time) {
+            this.charts.forEach(rec => { if (rec.chart !== sourceChart) rec.chart.clearCrosshairPosition(); });
+            return;
+        }
+        this.charts.forEach(rec => {
+            if (rec.chart !== sourceChart) rec.chart.setCrosshairPosition(0, param.time, rec.series);
+        });
+    }
 
-        // 1. Crosshair Sync
-        chart.subscribeCrosshairMove(param => {
-            if (!param.point || !param.time) {
-                // When mouse leaves, clear all other charts
-                this.charts.forEach(otherRecord => {
-                    if (otherRecord.chart !== chart) {
-                        otherRecord.chart.clearCrosshairPosition();
-                    }
-                });
-                return;
+    _syncTimeScale(range, sourceChart) {
+        if (this.isSyncing) return;
+
+        this.isSyncing = true;
+        this.charts.forEach(rec => {
+            if (rec.chart !== sourceChart) {
+                rec.chart.timeScale().setVisibleLogicalRange(range);
             }
-
-            // When mouse moves, update all other charts
-            this.charts.forEach(otherRecord => {
-                if (otherRecord.chart !== chart) {
-                    otherRecord.chart.setCrosshairPosition(0, param.time, otherRecord.series);
-                }
-            });
         });
 
-        // 2. Zoom/Pan Sync
-        chart.timeScale().subscribeVisibleLogicalRangeChange(range => {
-            if (this.isSyncing) return; // Exit if this event was triggered by the manager itself
-
-            this.isSyncing = true; // Set the flag
-            this.charts.forEach(otherRecord => {
-                if (otherRecord.chart !== chart) {
-                    otherRecord.chart.timeScale().setVisibleLogicalRange(range);
-                }
-            });
-            this.isSyncing = false; // Unset the flag
-        });
+        // Kỹ thuật chống lặp hiệu quả hơn
+        // Đặt isSyncing về false sau một khoảng thời gian cực ngắn
+        // để tất cả các sự kiện "dội lại" được bỏ qua.
+        setTimeout(() => {
+            this.isSyncing = false;
+        }, 0);
     }
 
     removeChart(chartToRemove) {

@@ -266,3 +266,34 @@ body {
     display: block;
 }
 
+/* --- CSS CHO LEFT TOOLBAR (THÊM MỚI) --- */
+.left-toolbar {
+    display: flex;
+    flex-direction: column; /* Sắp xếp các nút theo chiều dọc */
+    justify-content: flex-start;
+    align-items: center;
+    padding-top: 10px;
+    gap: 5px; /* Khoảng cách giữa các nút */
+}
+
+.toolbar-button {
+    background-color: transparent;
+    border: 1px solid transparent;
+    border-radius: 4px;
+    padding: 5px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #555;
+}
+
+.toolbar-button:hover {
+    background-color: #f0f3f5;
+}
+
+/* Class cho nút khi được kích hoạt */
+.toolbar-button.active {
+    background-color: #e0eefd;
+    color: #2962ff;
+}

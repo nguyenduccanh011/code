@@ -34,7 +34,13 @@
                 <button class="timeframe-button">M</button>
             </div>
         </header>
-        <aside class="left-toolbar">TOOLBAR</aside>
+        <aside class="left-toolbar">
+            <button class="toolbar-button" id="draw-trend-line-btn">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24">
+            <path fill="currentColor" d="M3.707 20.293a1 1 0 0 0 1.414 0l16-16a1 1 0 0 0-1.414-1.414l-16 16a1 1 0 0 0 0 1.414Z"/>
+        </svg>
+    </button>
+        </aside>
         
         <main class="main-chart"> <div id="main-chart-container"></div> <div id="rsi-chart-container"></div> </main>
         
@@ -46,6 +52,7 @@
     <script src="MACDIndicator.js"></script>
     <script src="BollingerBandsIndicator.js"></script>
     <script src="RSIIndicator.js"></script>
+    <script src="TrendLinePrimitive.js"></script>
     <script src="script.js"></script>
 
 </body>

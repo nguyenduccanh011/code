@@ -69,6 +69,13 @@ const syncManager = new ChartSyncManager();
 const activeIndicators = {};
 const dataStore = {};
 
+// --- Biến trạng thái cho việc vẽ Trend Line ---
+let isDrawingTrendLine = false;
+let trendLinePoints = [];
+const drawnTrendLines = [];
+let previewTrendLine = null;
+let trendLineRedrawRequested = false;
+let currentDrawingTarget = null;
 // ===================================================================================
 // KHỞI TẠO BIỂU ĐỒ CHÍNH
 // ===================================================================================
@@ -104,22 +111,37 @@ function initializeData() {
     dataStore['M'] = generateData('M');
 }
 
+// ▼▼▼ THAY THẾ TOÀN BỘ HÀM NÀY ▼▼▼
 function updateChartData(timeframe) {
     const candlestickData = dataStore[timeframe];
     mainSeries.setData(candlestickData);
 
+    // --- CÁC DÒNG BỊ THIẾU NẰM Ở ĐÂY ---
     const volumeData = candlestickData.map(item => ({ time: item.time, value: item.volume, color: item.close > item.open ? 'rgba(38, 166, 154, 0.5)' : 'rgba(239, 83, 80, 0.5)' }));
     volumeSeries.setData(volumeData);
-
     const smaData = calculateSMA(candlestickData, 9);
     smaLineSeries.setData(smaData);
+    // --- KẾT THÚC PHẦN BỊ THIẾU ---
 
-    // Cập nhật lại dữ liệu cho các chỉ báo đang hoạt động
     for (const id in activeIndicators) {
-        activeIndicators[id].update(candlestickData);
+        if (activeIndicators[id] && typeof activeIndicators[id].update === 'function') {
+            activeIndicators[id].update(candlestickData);
+        }
     }
-
     mainChart.timeScale().fitContent();
+
+    // VẼ LẠI TẤT CẢ CÁC ĐƯỜNG TREND LINE
+    drawnTrendLines.forEach(line => {
+        let targetSeries;
+        if (line.targetId === 'main') {
+            targetSeries = mainSeries;
+        } else if (activeIndicators[line.targetId]) {
+            targetSeries = activeIndicators[line.targetId].series;
+        }
+        if (targetSeries) {
+            targetSeries.attachPrimitive(line.primitive);
+        }
+    });
 }
 
 // --- Lắng nghe sự kiện cho các nút Timeframe ---
@@ -221,3 +243,64 @@ mainChart.subscribeCrosshairMove(param => {
 // ===================================================================================
 initializeData();
 updateChartData('D');
+
+// ===================================================================================
+// LOGIC VẼ TREND LINE (Phiên bản sửa lỗi)
+// ===================================================================================
+
+const drawTrendLineBtn = document.getElementById('draw-trend-line-btn');
+
+function onChartClicked(param, target) {
+    if (!isDrawingTrendLine || !param.point || !param.time || !target.series || !param.seriesData.has(target.series)) return;
+    const price = target.series.coordinateToPrice(param.point.y);
+    if (price === null) return;
+    const point = { time: param.time, price: price };
+    trendLinePoints.push(point);
+
+    if (trendLinePoints.length === 1) {
+        currentDrawingTarget = target;
+        previewTrendLine = new TrendLine(target.chart, target.series, point, point);
+        target.series.attachPrimitive(previewTrendLine);
+    } else if (trendLinePoints.length === 2) {
+        // Lưu lại primitive và targetId của nó
+        drawnTrendLines.push({ targetId: target.id, primitive: previewTrendLine });
+        previewTrendLine = null;
+        isDrawingTrendLine = false;
+        trendLinePoints = [];
+        currentDrawingTarget = null;
+        drawTrendLineBtn.classList.remove('active');
+    }
+}
+
+function onCrosshairMoved(param, sourceChart) {
+    if (!isDrawingTrendLine || trendLinePoints.length !== 1 || !param.point || !param.time || !currentDrawingTarget) return;
+    if (currentDrawingTarget.chart !== sourceChart) return;
+    const price = currentDrawingTarget.series.coordinateToPrice(param.point.y);
+    if (price === null) return;
+    previewTrendLine._p2 = { time: param.time, price: price };
+    
+    if (!trendLineRedrawRequested) {
+        trendLineRedrawRequested = true;
+        requestAnimationFrame(animationLoop);
+    }
+}
+
+function animationLoop() {
+    if (trendLineRedrawRequested) {
+        if (currentDrawingTarget) {
+            // Lấy dữ liệu từ series của đúng chart đang vẽ
+            const data = currentDrawingTarget.series.data();
+            if (data.length > 0) {
+                 currentDrawingTarget.series.update(data[data.length - 1]);
+            }
+        }
+        trendLineRedrawRequested = false;
+    }
+}
+
+drawTrendLineBtn.addEventListener('click', () => { /* Giữ nguyên */ });
+
+// Gắn sự kiện click cho biểu đồ chính
+mainChart.subscribeClick(param => onChartClicked(param, { chart: mainChart, series: mainSeries, id: 'main' }));
+// Gắn sự kiện di chuột cho biểu đồ chính
+mainChart.subscribeCrosshairMove(param => onCrosshairMoved(param, mainChart));

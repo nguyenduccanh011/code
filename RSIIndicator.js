@@ -55,23 +55,19 @@ class RSIIndicator {
     }
 
     // Thay thế toàn bộ hàm addToChart
-   addToChart(data) {
+addToChart(data) {
     this.container.style.display = 'block';
-    this.chart = LightweightCharts.createChart(this.container, {
-        layout: { background: { color: '#ffffff' }, textColor: '#333' },
-        grid: { vertLines: { color: '#f0f3f5' }, horzLines: { color: '#f0f3f5' } },
-        timeScale: { visible: false, rightOffset: 12, },
-        crosshair: { mode: LightweightCharts.CrosshairMode.Normal },
-    });
-    
+    this.chart = LightweightCharts.createChart(this.container, { /* ...options... */ });
     this.series = this.chart.addLineSeries({ color: '#8884d8', lineWidth: 2 });
-    this.series.createPriceLine({ price: 70, color: '#ef5350', lineWidth: 1, lineStyle: LightweightCharts.LineStyle.Dashed, axisLabelVisible: true, title: '70' });
-    this.series.createPriceLine({ price: 30, color: '#26a69a', lineWidth: 1, lineStyle: LightweightCharts.LineStyle.Dashed, axisLabelVisible: true, title: '30' });
+    syncManager.addChart(this.chart, this.series); // Chỉ đồng bộ crosshair
+    
+    // Gắn listener vẽ
+    this.chart.subscribeClick(param => onChartClicked(param, { chart: this.chart, series: this.series, id: 'rsi'}));
+    this.chart.subscribeCrosshairMove(param => onCrosshairMoved(param, this.chart));
 
+    this.series.createPriceLine({ price: 70, /*...*/ });
+    this.series.createPriceLine({ price: 30, /*...*/ });
     this.update(data);
-
-    // ▼▼▼ CHỈ CẦN 1 DÒNG ĐỂ ĐĂNG KÝ VỚI MANAGER ▼▼▼
-    syncManager.addChart(this.chart, this.series);
 }
 
 // Thay thế hàm remove

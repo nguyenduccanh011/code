@@ -72,25 +72,20 @@ class MACDIndicator {
     this.chartContainer.style.height = '180px';
     const rsiContainer = document.getElementById('rsi-chart-container');
     rsiContainer.parentNode.insertBefore(this.chartContainer, rsiContainer.nextSibling);
-
-    this.chart = LightweightCharts.createChart(this.chartContainer, {
-         layout: { background: { color: '#ffffff' }, textColor: '#333' },
-         grid: { vertLines: { color: '#f0f3f5' }, horzLines: { color: '#f0f3f5' } },
-         timeScale: { visible: false, rightOffset: 12, },
-         crosshair: { mode: LightweightCharts.CrosshairMode.Normal },
-    });
-
-    this.histogramSeries = this.chart.addHistogramSeries({ priceFormat: { type: 'volume' } });
+    this.chart = LightweightCharts.createChart(this.chartContainer, { /*...options...*/ });
+    this.histogramSeries = this.chart.addHistogramSeries({ /*...*/ });
     this.macdSeries = this.chart.addLineSeries({ color: '#2962FF', lineWidth: 2 });
     this.signalSeries = this.chart.addLineSeries({ color: '#FF6D00', lineWidth: 2 });
     this.series = this.macdSeries;
+    syncManager.addChart(this.chart, this.series); // Chỉ đồng bộ crosshair
+
+    // Gắn listener vẽ
+    this.chart.subscribeClick(param => onChartClicked(param, { chart: this.chart, series: this.series, id: 'macd' }));
+    this.chart.subscribeCrosshairMove(param => onCrosshairMoved(param, this.chart));
 
     this.update(data);
-    
-    // ▼▼▼ CHỈ CẦN 1 DÒNG ĐỂ ĐĂNG KÝ VỚI MANAGER ▼▼▼
-    syncManager.addChart(this.chart, this.series);
 }
-    
+
     update(data) {
         if (!this.chart) return;
         const { macdLine, signalLine, histogramData } = this.calculate(data);

@@ -76,21 +76,32 @@ class TrendLine {
     }
     
     autoscaleInfo(startTimePoint, endTimePoint) {
-        // Tự động điều chỉnh trục giá để đường vẽ luôn hiển thị
-        const p1Index = this._chart.timeScale().timeToLogical(this._p1.time);
-        const p2Index = this._chart.timeScale().timeToLogical(this._p2.time);
+    // Chuyển đổi Time -> Coordinate (pixel)
+    const p1Coord = this._chart.timeScale().timeToCoordinate(this._p1.time);
+    const p2Coord = this._chart.timeScale().timeToCoordinate(this._p2.time);
 
-        if (p1Index === null || p2Index === null) return null;
-        if (endTimePoint < p1Index || startTimePoint > p2Index) return null;
+    if (p1Coord === null || p2Coord === null) return null;
 
-        const minPrice = Math.min(this._p1.price, this._p2.price);
-        const maxPrice = Math.max(this._p1.price, this._p2.price);
-        
-        return {
-            priceRange: {
-                minValue: minPrice,
-                maxValue: maxPrice,
-            },
-        };
-    }
+    // Chuyển đổi Coordinate (pixel) -> Logical (index)
+    const p1Index = this._chart.timeScale().coordinateToLogical(p1Coord);
+    const p2Index = this._chart.timeScale().coordinateToLogical(p2Coord);
+
+    if (p1Index === null || p2Index === null) return null;
+
+    // Đảm bảo thứ tự index đúng để so sánh
+    const firstIndex = Math.min(p1Index, p2Index);
+    const lastIndex = Math.max(p1Index, p2Index);
+    
+    if (endTimePoint < firstIndex || startTimePoint > lastIndex) return null;
+
+    const minPrice = Math.min(this._p1.price, this._p2.price);
+    const maxPrice = Math.max(this._p1.price, this._p2.price);
+    
+    return {
+        priceRange: {
+            minValue: minPrice,
+            maxValue: maxPrice,
+        },
+    };
+}
 }
