@@ -72,15 +72,24 @@ class MACDIndicator {
     this.chartContainer.style.height = '180px';
     const rsiContainer = document.getElementById('rsi-chart-container');
     rsiContainer.parentNode.insertBefore(this.chartContainer, rsiContainer.nextSibling);
-    this.chart = LightweightCharts.createChart(this.chartContainer, { /*...options...*/ });
+
+    this.chart = LightweightCharts.createChart(this.chartContainer, {
+        /*...các tùy chọn...*/
+        // Thêm tùy chọn này để vô hiệu hóa trình xử lý cuộn chuột mặc định
+        handleScroll: false,
+        handleScale: false,
+    });
     this.histogramSeries = this.chart.addHistogramSeries({ /*...*/ });
     this.macdSeries = this.chart.addLineSeries({ color: '#2962FF', lineWidth: 2 });
     this.signalSeries = this.chart.addLineSeries({ color: '#FF6D00', lineWidth: 2 });
     this.series = this.macdSeries;
-    syncManager.addChart(this.chart, this.series); // Chỉ đồng bộ crosshair
+    syncManager.addChart(this.chart, this.series);
 
-    // Gắn listener vẽ
-    this.chart.subscribeClick(param => onChartClicked(param, { chart: this.chart, series: this.series, id: 'macd' }));
+    // BƯỚC 1: Gắn listener mousedown đáng tin cậy cho việc click
+    const target = { chart: this.chart, series: this.series, id: 'macd' };
+    this.chartContainer.addEventListener('mousedown', (event) => onChartMouseDown(event, target));
+
+    // BƯỚC 2: Giữ lại listener crosshair move cho đường xem trước mượt mà
     this.chart.subscribeCrosshairMove(param => onCrosshairMoved(param, this.chart));
 
     this.update(data);

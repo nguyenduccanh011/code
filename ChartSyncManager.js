@@ -14,16 +14,29 @@ class ChartSyncManager {
         chart.subscribeCrosshairMove(param => this._syncCrosshair(param, chart));
         chart.timeScale().subscribeVisibleLogicalRangeChange(range => this._syncTimeScale(range, chart));
     }
-    
+
+    // ▼▼▼ THAY ĐỔI HÀM NÀY ▼▼▼
     _syncCrosshair(param, sourceChart) {
+        // Nếu cờ isSyncing đang bật, có nghĩa là hành động này là do chính manager
+        // gây ra, nên chúng ta sẽ bỏ qua để tránh vòng lặp.
+        if (this.isSyncing) return;
+
+        this.isSyncing = true; // Bật cờ lên
+
         if (!param.point || !param.time) {
             this.charts.forEach(rec => { if (rec.chart !== sourceChart) rec.chart.clearCrosshairPosition(); });
-            return;
+        } else {
+            this.charts.forEach(rec => {
+                if (rec.chart !== sourceChart) {
+                    // Ra lệnh cho các biểu đồ khác cập nhật
+                    rec.chart.setCrosshairPosition(0, param.time, rec.series);
+                }
+            });
         }
-        this.charts.forEach(rec => {
-            if (rec.chart !== sourceChart) rec.chart.setCrosshairPosition(0, param.time, rec.series);
-        });
+
+        this.isSyncing = false; // Tắt cờ đi
     }
+    // ▲▲▲ KẾT THÚC THAY ĐỔI ▲▲▲
 
     _syncTimeScale(range, sourceChart) {
         if (this.isSyncing) return;
@@ -35,9 +48,6 @@ class ChartSyncManager {
             }
         });
 
-        // Kỹ thuật chống lặp hiệu quả hơn
-        // Đặt isSyncing về false sau một khoảng thời gian cực ngắn
-        // để tất cả các sự kiện "dội lại" được bỏ qua.
         setTimeout(() => {
             this.isSyncing = false;
         }, 0);

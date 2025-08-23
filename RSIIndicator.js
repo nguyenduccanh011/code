@@ -57,16 +57,25 @@ class RSIIndicator {
     // Thay thế toàn bộ hàm addToChart
 addToChart(data) {
     this.container.style.display = 'block';
-    this.chart = LightweightCharts.createChart(this.container, { /* ...options... */ });
+    this.chart = LightweightCharts.createChart(this.container, {
+        /* ...các tùy chọn... */
+        // Thêm tùy chọn này để vô hiệu hóa trình xử lý cuộn chuột mặc định của biểu đồ
+        handleScroll: false,
+        handleScale: false,
+    });
     this.series = this.chart.addLineSeries({ color: '#8884d8', lineWidth: 2 });
-    syncManager.addChart(this.chart, this.series); // Chỉ đồng bộ crosshair
-    
-    // Gắn listener vẽ
-    this.chart.subscribeClick(param => onChartClicked(param, { chart: this.chart, series: this.series, id: 'rsi'}));
+    syncManager.addChart(this.chart, this.series);
+
+    // BƯỚC 1: Gắn listener mousedown đáng tin cậy cho việc click
+    const target = { chart: this.chart, series: this.series, id: 'rsi' };
+    this.container.addEventListener('mousedown', (event) => onChartMouseDown(event, target));
+
+    // BƯỚC 2: Giữ lại listener crosshair move cho đường xem trước mượt mà
     this.chart.subscribeCrosshairMove(param => onCrosshairMoved(param, this.chart));
 
-    this.series.createPriceLine({ price: 70, /*...*/ });
-    this.series.createPriceLine({ price: 30, /*...*/ });
+    // ... (phần còn lại của hàm không đổi) ...
+    this.series.createPriceLine({ price: 70, color: '#787B86', lineWidth: 1, lineStyle: LightweightCharts.LineStyle.Dashed, axisLabelVisible: true, title: 'Overbought' });
+    this.series.createPriceLine({ price: 30, color: '#787B86', lineWidth: 1, lineStyle: LightweightCharts.LineStyle.Dashed, axisLabelVisible: true, title: 'Oversold' });
     this.update(data);
 }
 
