@@ -102,8 +102,22 @@ function applyDataToChart(candlestickData) {
 }
 
 async function initialLoad(symbol, timeframe) {
-    initialLoadCompleted = false; 
-    const data = await dataProvider.getHistory(symbol, timeframe);
+    // Cập nhật các yếu tố UI ngay lập tức
+    document.getElementById('symbol-display').textContent = symbol.toUpperCase();
+    document.getElementById('symbol-description').textContent = "Đang tải tên công ty..."; // Thông báo tạm thời
+    mainChart.applyOptions({ watermark: { text: symbol.toUpperCase() } });
+
+    // ▼▼▼ THAY ĐỔI: Gọi API song song để tăng tốc độ ▼▼▼
+    const historyPromise = dataProvider.getHistory(symbol, timeframe);
+    const companyInfoPromise = dataProvider.getCompanyInfo(symbol);
+
+    const [data, companyName] = await Promise.all([historyPromise, companyInfoPromise]);
+    
+    // Cập nhật tên công ty sau khi có kết quả
+    document.getElementById('symbol-description').textContent = companyName;
+    // ▲▲▲ KẾT THÚC THAY ĐỔI ▲▲▲
+
+    initialLoadCompleted = false;
     if (!data || data.length === 0) {
         console.error("Không nhận được dữ liệu ban đầu.");
         currentCandlestickData = [];
@@ -112,9 +126,9 @@ async function initialLoad(symbol, timeframe) {
     }
     applyDataToChart(currentCandlestickData);
     mainChart.timeScale().fitContent();
-    
+
     setTimeout(() => {
-        initialLoadCompleted = true; 
+        initialLoadCompleted = true;
     }, 500);
 }
 
@@ -156,6 +170,21 @@ const indicatorFactory = {
 };
 const ohlcContainer = document.querySelector('.ohlc-info');
 
+const symbolSearchInput = document.getElementById('symbol-search-input');
+symbolSearchInput.addEventListener('keyup', (event) => {
+    if (event.key === 'Enter') {
+        const newSymbol = symbolSearchInput.value.trim().toUpperCase();
+
+        if (newSymbol && newSymbol !== currentSymbol) {
+            currentSymbol = newSymbol;
+            const activeTimeframe = document.querySelector('.timeframe-button.active').textContent;
+            initialLoad(currentSymbol, activeTimeframe);
+            symbolSearchInput.value = ''; 
+            symbolSearchInput.blur();     
+        }
+    }
+});
+
 async function loadMoreHistory() {
     if (isLoadingMoreData || !initialLoadCompleted || currentCandlestickData.length === 0) {
         return;
@@ -194,14 +223,12 @@ async function loadMoreHistory() {
             return dateA - dateB;
         });
 
-        // ▼▼▼ BẮT ĐẦU SỬA LỖI THEO MẪU ▼▼▼
         setTimeout(() => {
             currentCandlestickData = uniqueDataArray;
             applyDataToChart(currentCandlestickData);
             console.log(`Đã tải và gộp thành công, tổng số nến: ${currentCandlestickData.length}.`);
             isLoadingMoreData = false;
         }, 250);
-        // ▲▲▲ KẾT THÚC SỬA LỖI THEO MẪU ▲▲▲
         
         return;
     } else {
@@ -226,7 +253,6 @@ initialLoad(currentSymbol, 'D');
 // ===================================================================================
 // LOGIC VẼ VÀ TƯƠNG TÁC VỚI TREND LINE (Không thay đổi)
 // ===================================================================================
-// ... (Toàn bộ phần code vẽ, di chuyển, xóa trend line giữ nguyên) ...
 const drawTrendLineBtn = document.getElementById('draw-trend-line-btn');
 
 function onChartMouseDown(event, target) {

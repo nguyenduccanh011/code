@@ -21,15 +21,11 @@ class DataProvider {
         };
         const resolution = resolutionMap[timeframe] || '1D';
 
-        // ▼▼▼ BẮT ĐẦU THAY ĐỔI ▼▼▼
-        // Xây dựng URL cơ bản
         let url = `http://127.0.0.1:5000/api/history?symbol=${symbol}&resolution=${resolution}`;
 
-        // Nếu có tham số ngày tháng, thêm chúng vào URL
         if (from && to) {
             url += `&from=${from}&to=${to}`;
         }
-        // ▲▲▲ KẾT THÚC THAY ĐỔI ▲▲▲
 
         try {
             const response = await fetch(url);
@@ -60,4 +56,28 @@ class DataProvider {
             return [];
         }
     }
+
+    // ▼▼▼ THÊM MỚI HÀM NÀY ▼▼▼
+    /**
+     * Lấy thông tin tên đầy đủ của công ty từ backend.
+     * @param {string} symbol Mã cổ phiếu
+     * @returns {Promise<string>} Tên đầy đủ của công ty.
+     */
+    async getCompanyInfo(symbol) {
+        console.log(`Yêu cầu thông tin công ty cho ${symbol}...`);
+        const url = `http://127.0.0.1:5000/api/company_info?symbol=${symbol}`;
+
+        try {
+            const response = await fetch(url);
+            if (!response.ok) {
+                throw new Error(`Lỗi server khi lấy thông tin công ty: ${response.status}`);
+            }
+            const data = await response.json();
+            return data.fullName || `Không tìm thấy thông tin cho ${symbol}`;
+        } catch (error) {
+            console.error("Lỗi khi gọi API lấy thông tin công ty:", error);
+            return `Lỗi khi tải thông tin cho ${symbol}`;
+        }
+    }
+    // ▲▲▲ KẾT THÚC THÊM MỚI ▲▲▲
 }
