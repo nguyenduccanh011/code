@@ -82,7 +82,8 @@ const mainChart = LightweightCharts.createChart(mainChartContainer, {
     autoSize: true,
     layout: { background: { color: '#ffffff' }, textColor: '#333' },
     grid: { vertLines: { color: '#f0f3f5' }, horzLines: { color: '#f0f3f5' } },
-    timeScale: { borderColor: '#ddd', timeVisible: true, secondsVisible: false, rightOffset: 12 },
+    // Tăng khoảng trống bên phải để có chỗ vẽ
+    timeScale: { borderColor: '#ddd', timeVisible: true, secondsVisible: false, rightOffset: 50 },
     watermark: { color: 'rgba(200, 200, 200, 0.4)', visible: true, text: 'VNINDEX', fontSize: 48, horzAlign: 'center', vertAlign: 'center' },
     crosshair: { mode: LightweightCharts.CrosshairMode.Normal },
 });
@@ -107,7 +108,7 @@ function initializeData() {
 function updateChartData(timeframe) {
     const candlestickData = dataStore[timeframe];
     mainSeries.setData(candlestickData);
-    const volumeData = candlestickData.map(item => ({ time: item.time, value: item.volume, color: item.close > item.open ? 'rgba(38, 166, 154, 0.5)' : 'rgba(239, 83, 80, 0.5)' }));
+    const volumeData = candlestickData.map(item => ({ time: item.time, value: item.volume, color: item.close > item.open ? 'rgba(38, 166, 164, 0.5)' : 'rgba(239, 83, 80, 0.5)' }));
     volumeSeries.setData(volumeData);
     const smaData = calculateSMA(candlestickData, 9);
     smaLineSeries.setData(smaData);
@@ -183,19 +184,20 @@ initializeData();
 updateChartData('D');
 
 // ===================================================================================
-// LOGIC VẼ TREND LINE (PHIÊN BẢN SỬA LỖI CUỐI CÙNG)
+// LOGIC VẼ TREND LINE
 // ===================================================================================
 
 const drawTrendLineBtn = document.getElementById('draw-trend-line-btn');
 
 function onChartMouseDown(event, target) {
-    // Lấy container của biểu đồ được click
     const container = target.chart.chartElement().parentElement;
     const bounds = container.getBoundingClientRect();
     const x = event.clientX - bounds.left;
     const y = event.clientY - bounds.top;
 
     const time = target.chart.timeScale().coordinateToTime(x);
+    // THAY ĐỔI CUỐI CÙNG: Gọi trực tiếp coordinateToPrice từ chính series.
+    // Đây là cách đúng để lấy giá trị trên trục giá tương ứng của series đó.
     const price = target.series.coordinateToPrice(y);
 
     if (!time || price === null) return;
@@ -204,7 +206,21 @@ function onChartMouseDown(event, target) {
 
     switch (drawingState) {
         case 'idle':
-            // ... (Logic chọn/bỏ chọn giữ nguyên)
+            let clickedLine = null;
+            for (const line of drawnTrendLines) {
+                if (line.primitive.hitTest(x, y)) {
+                    clickedLine = line;
+                    break;
+                }
+            }
+            if (selectedTrendLine && selectedTrendLine !== clickedLine) {
+                selectedTrendLine.primitive.setSelected(false);
+                selectedTrendLine = null;
+            }
+            if (clickedLine && clickedLine !== selectedTrendLine) {
+                clickedLine.primitive.setSelected(true);
+                selectedTrendLine = clickedLine;
+            }
             break;
         case 'activating_draw_mode':
             trendLinePoints = [point];
@@ -247,7 +263,10 @@ function onCrosshairMoved(param, sourceChart) {
     // Cập nhật đường xem trước
     if (drawingState !== 'placing_point_2' || !param.point || !param.time || !currentDrawingTarget) return;
     if (currentDrawingTarget.chart !== sourceChart) return;
+    
+    // THAY ĐỔI CUỐI CÙNG: Gọi trực tiếp coordinateToPrice từ chính series.
     const price = currentDrawingTarget.series.coordinateToPrice(param.point.y);
+
     if (price === null) return;
     previewTrendLine._p2 = { time: param.time, price: price };
     
