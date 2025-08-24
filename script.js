@@ -63,13 +63,23 @@ const activeIndicators = {};
 const dataStore = {};
 
 // --- Biến trạng thái cho việc vẽ Trend Line ---
-let drawingState = 'idle'; // Các trạng thái: 'idle', 'activating_draw_mode', 'placing_point_2'
+let drawingState = 'idle'; // 'idle', 'activating_draw_mode', 'placing_point_2', 'moving'
+
 let trendLinePoints = [];
 const drawnTrendLines = [];
 let previewTrendLine = null;
 let trendLineRedrawRequested = false;
 let currentDrawingTarget = null;
 let selectedTrendLine = null;
+
+let moveState = {
+    isMoving: false,
+    targetLine: null,
+    moveType: null, // 'line', 'p1', 'p2'
+    lastTime: null,
+    lastPrice: null,
+};
+
 
 // ===================================================================================
 // KHỞI TẠO BIỂU ĐỒ CHÍNH
@@ -82,7 +92,6 @@ const mainChart = LightweightCharts.createChart(mainChartContainer, {
     autoSize: true,
     layout: { background: { color: '#ffffff' }, textColor: '#333' },
     grid: { vertLines: { color: '#f0f3f5' }, horzLines: { color: '#f0f3f5' } },
-    // Tăng khoảng trống bên phải để có chỗ vẽ
     timeScale: { borderColor: '#ddd', timeVisible: true, secondsVisible: false, rightOffset: 50 },
     watermark: { color: 'rgba(200, 200, 200, 0.4)', visible: true, text: 'VNINDEX', fontSize: 48, horzAlign: 'center', vertAlign: 'center' },
     crosshair: { mode: LightweightCharts.CrosshairMode.Normal },
@@ -184,7 +193,7 @@ initializeData();
 updateChartData('D');
 
 // ===================================================================================
-// LOGIC VẼ TREND LINE
+// LOGIC VẼ VÀ TƯƠNG TÁC VỚI TREND LINE
 // ===================================================================================
 
 const drawTrendLineBtn = document.getElementById('draw-trend-line-btn');
@@ -196,30 +205,48 @@ function onChartMouseDown(event, target) {
     const y = event.clientY - bounds.top;
 
     const time = target.chart.timeScale().coordinateToTime(x);
-    // THAY ĐỔI CUỐI CÙNG: Gọi trực tiếp coordinateToPrice từ chính series.
-    // Đây là cách đúng để lấy giá trị trên trục giá tương ứng của series đó.
     const price = target.series.coordinateToPrice(y);
 
     if (!time || price === null) return;
-    
+
     const point = { time, price };
 
     switch (drawingState) {
         case 'idle':
-            let clickedLine = null;
+            let clickedLineInfo = null;
             for (const line of drawnTrendLines) {
-                if (line.primitive.hitTest(x, y)) {
-                    clickedLine = line;
+                const hitResult = line.primitive.hitTest(x, y);
+                if (hitResult) {
+                    clickedLineInfo = { line, hitResult };
                     break;
                 }
             }
-            if (selectedTrendLine && selectedTrendLine !== clickedLine) {
+
+            if (selectedTrendLine && selectedTrendLine !== (clickedLineInfo ? clickedLineInfo.line : null)) {
                 selectedTrendLine.primitive.setSelected(false);
                 selectedTrendLine = null;
             }
-            if (clickedLine && clickedLine !== selectedTrendLine) {
-                clickedLine.primitive.setSelected(true);
-                selectedTrendLine = clickedLine;
+
+            if (clickedLineInfo) {
+                const { line, hitResult } = clickedLineInfo;
+                if (line !== selectedTrendLine) {
+                    line.primitive.setSelected(true);
+                    selectedTrendLine = line;
+                }
+                
+                target.chart.applyOptions({
+                    handleScroll: false,
+                    handleScale: false,
+                });
+
+                drawingState = 'moving';
+                moveState = {
+                    isMoving: true,
+                    targetLine: line,
+                    moveType: hitResult,
+                    lastTime: time,
+                    lastPrice: price,
+                };
             }
             break;
         case 'activating_draw_mode':
@@ -234,7 +261,7 @@ function onChartMouseDown(event, target) {
             previewTrendLine._p2 = point;
             target.chart.priceScale('').applyOptions({});
             drawnTrendLines.push({ targetId: target.id, primitive: previewTrendLine });
-            
+
             drawingState = 'idle';
             drawTrendLineBtn.classList.remove('active');
             trendLinePoints = [];
@@ -245,7 +272,6 @@ function onChartMouseDown(event, target) {
 }
 
 function onCrosshairMoved(param, sourceChart) {
-    // Cập nhật OHLC
     if (sourceChart === mainChart) {
         const formatPrice = p => p.toFixed(2);
         const formatVolume = v => (v > 1e6 ? (v / 1e6).toFixed(2) + 'tr' : v.toLocaleString());
@@ -260,19 +286,108 @@ function onCrosshairMoved(param, sourceChart) {
         }
     }
 
-    // Cập nhật đường xem trước
     if (drawingState !== 'placing_point_2' || !param.point || !param.time || !currentDrawingTarget) return;
     if (currentDrawingTarget.chart !== sourceChart) return;
-    
-    // THAY ĐỔI CUỐI CÙNG: Gọi trực tiếp coordinateToPrice từ chính series.
+
     const price = currentDrawingTarget.series.coordinateToPrice(param.point.y);
 
     if (price === null) return;
     previewTrendLine._p2 = { time: param.time, price: price };
-    
+
     if (!trendLineRedrawRequested) {
         trendLineRedrawRequested = true;
         requestAnimationFrame(animationLoop);
+    }
+}
+
+function onChartMouseMove(event, target) {
+    if (drawingState !== 'moving' || !moveState.isMoving) return;
+
+    const container = target.chart.chartElement().parentElement;
+    const bounds = container.getBoundingClientRect();
+    const x = event.clientX - bounds.left;
+    const y = event.clientY - bounds.top;
+
+    const time = target.chart.timeScale().coordinateToTime(x);
+    const price = target.series.coordinateToPrice(y);
+
+    if (!time || price === null) return;
+
+    const line = moveState.targetLine.primitive;
+    const timeScale = target.chart.timeScale();
+    
+    const p1Coord = timeScale.timeToCoordinate(line._p1.time);
+    const p2Coord = timeScale.timeToCoordinate(line._p2.time);
+    const lastTimeCoord = timeScale.timeToCoordinate(moveState.lastTime);
+    
+    const p1Index = timeScale.coordinateToLogical(p1Coord);
+    const p2Index = timeScale.coordinateToLogical(p2Coord);
+    const lastTimeIndex = timeScale.coordinateToLogical(lastTimeCoord);
+    const currentTimeIndex = timeScale.coordinateToLogical(x);
+
+    if(p1Index === null || p2Index === null || lastTimeIndex === null || currentTimeIndex === null) return;
+
+    const timeDiff = currentTimeIndex - lastTimeIndex;
+    const priceDiff = price - moveState.lastPrice;
+
+    switch (moveState.moveType) {
+        case 'line':
+            const newP1Time = timeScale.logicalToTime(p1Index + timeDiff);
+            const newP2Time = timeScale.logicalToTime(p2Index + timeDiff);
+            if (newP1Time) line._p1.time = newP1Time;
+            if (newP2Time) line._p2.time = newP2Time;
+            line._p1.price += priceDiff;
+            line._p2.price += priceDiff;
+            break;
+        case 'p1':
+            line._p1.time = time;
+            line._p1.price = price;
+            break;
+        case 'p2':
+            line._p2.time = time;
+            line._p2.price = price;
+            break;
+    }
+
+    moveState.lastTime = time;
+    moveState.lastPrice = price;
+    
+    target.chart.priceScale('').applyOptions({});
+}
+
+function onChartMouseUp(event, target) {
+    if (drawingState === 'moving' && moveState.isMoving) {
+        target.chart.applyOptions({
+            handleScroll: true,
+            handleScale: true,
+        });
+        
+        drawingState = 'idle';
+        moveState = { isMoving: false, targetLine: null, moveType: null, lastTime: null, lastPrice: null };
+    }
+}
+
+function handleKeyDown(event) {
+    if ((event.key === 'Delete' || event.key === 'Backspace') && selectedTrendLine) {
+        let targetSeries;
+        if (selectedTrendLine.targetId === 'main') {
+            targetSeries = mainSeries;
+        } else if (activeIndicators[selectedTrendLine.targetId]) {
+            targetSeries = activeIndicators[selectedTrendLine.targetId].series;
+        }
+
+        if (targetSeries) {
+            targetSeries.detachPrimitive(selectedTrendLine.primitive);
+            const chart = targetSeries.chart();
+            chart.priceScale('').applyOptions({});
+        }
+
+        const index = drawnTrendLines.findIndex(line => line.primitive === selectedTrendLine.primitive);
+        if (index > -1) {
+            drawnTrendLines.splice(index, 1);
+        }
+        
+        selectedTrendLine = null;
     }
 }
 
@@ -306,7 +421,11 @@ drawTrendLineBtn.addEventListener('click', (event) => {
     event.currentTarget.blur();
 });
 
-// Gắn sự kiện cho biểu đồ chính
 const mainChartTarget = { chart: mainChart, series: mainSeries, id: 'main' };
 mainChartContainer.addEventListener('mousedown', (event) => onChartMouseDown(event, mainChartTarget));
+mainChartContainer.addEventListener('mousemove', (event) => onChartMouseMove(event, mainChartTarget));
+mainChartContainer.addEventListener('mouseup', (event) => onChartMouseUp(event, mainChartTarget));
+mainChartContainer.addEventListener('mouseleave', (event) => onChartMouseUp(event, mainChartTarget));
 mainChart.subscribeCrosshairMove(param => onCrosshairMoved(param, mainChart));
+
+window.addEventListener('keydown', handleKeyDown);
