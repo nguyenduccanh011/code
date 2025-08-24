@@ -22,49 +22,22 @@ function calculateSMA(data, period) {
     return smaData;
 }
 
-function generateData(timeframe) {
-    const data = [];
-    let startDate = new Date(2025, 0, 1);
-    let numPoints = 100;
-    let price = 1200;
-    let increment = 1;
-
-    if (timeframe === 'W') {
-        numPoints = 50;
-        increment = 7;
-    } else if (timeframe === 'M') {
-        numPoints = 30;
-        increment = 30;
-    }
-
-    for (let i = 0; i < numPoints; i++) {
-        const date = new Date(startDate);
-        date.setDate(startDate.getDate() + i * increment);
-        const open = price + Math.random() * 10 - 5;
-        const close = open + Math.random() * 20 - 10;
-        const high = Math.max(open, close) + Math.random() * 5;
-        const low = Math.min(open, close) - Math.random() * 5;
-        const volume = 1e6 + Math.random() * 5e6;
-        data.push({
-            time: { year: date.getFullYear(), month: date.getMonth() + 1, day: date.getDate() },
-            open: open, high: high, low: low, close: close, volume: volume,
-        });
-        price = close;
-    }
-    return data;
-}
-
 // ===================================================================================
 // KHAI BÁO BIẾN TOÀN CỤC VÀ TRÌNH QUẢN LÝ
 // ===================================================================================
 
 const syncManager = new ChartSyncManager();
 const activeIndicators = {};
-const dataStore = {};
+const dataProvider = new DataProvider();
+
+// --- Biến quản lý dữ liệu và trạng thái tải ---
+let currentSymbol = 'VNINDEX';
+let currentCandlestickData = [];
+let isLoadingMoreData = false;
+let initialLoadCompleted = false;
 
 // --- Biến trạng thái cho việc vẽ Trend Line ---
-let drawingState = 'idle'; // 'idle', 'activating_draw_mode', 'placing_point_2', 'moving'
-
+let drawingState = 'idle';
 let trendLinePoints = [];
 const drawnTrendLines = [];
 let previewTrendLine = null;
@@ -75,7 +48,7 @@ let selectedTrendLine = null;
 let moveState = {
     isMoving: false,
     targetLine: null,
-    moveType: null, // 'line', 'p1', 'p2'
+    moveType: null,
     lastTime: null,
     lastPrice: null,
 };
@@ -108,36 +81,41 @@ syncManager.addChart(mainChart, mainSeries);
 // LOGIC CẬP NHẬT DỮ LIỆU VÀ SỰ KIỆN
 // ===================================================================================
 
-function initializeData() {
-    dataStore['D'] = generateData('D');
-    dataStore['W'] = generateData('W');
-    dataStore['M'] = generateData('M');
-}
-
-function updateChartData(timeframe) {
-    const candlestickData = dataStore[timeframe];
+function applyDataToChart(candlestickData) {
     mainSeries.setData(candlestickData);
-    const volumeData = candlestickData.map(item => ({ time: item.time, value: item.volume, color: item.close > item.open ? 'rgba(38, 166, 164, 0.5)' : 'rgba(239, 83, 80, 0.5)' }));
+
+    const volumeData = candlestickData.map(item => ({
+        time: item.time,
+        value: item.volume,
+        color: item.close > item.open ? 'rgba(38, 166, 164, 0.5)' : 'rgba(239, 83, 80, 0.5)'
+    }));
     volumeSeries.setData(volumeData);
+
     const smaData = calculateSMA(candlestickData, 9);
     smaLineSeries.setData(smaData);
+
     for (const id in activeIndicators) {
         if (activeIndicators[id] && typeof activeIndicators[id].update === 'function') {
             activeIndicators[id].update(candlestickData);
         }
     }
+}
+
+async function initialLoad(symbol, timeframe) {
+    initialLoadCompleted = false; 
+    const data = await dataProvider.getHistory(symbol, timeframe);
+    if (!data || data.length === 0) {
+        console.error("Không nhận được dữ liệu ban đầu.");
+        currentCandlestickData = [];
+    } else {
+        currentCandlestickData = data;
+    }
+    applyDataToChart(currentCandlestickData);
     mainChart.timeScale().fitContent();
-    drawnTrendLines.forEach(line => {
-        let targetSeries;
-        if (line.targetId === 'main') {
-            targetSeries = mainSeries;
-        } else if (activeIndicators[line.targetId]) {
-            targetSeries = activeIndicators[line.targetId].series;
-        }
-        if (targetSeries) {
-            targetSeries.attachPrimitive(line.primitive);
-        }
-    });
+    
+    setTimeout(() => {
+        initialLoadCompleted = true; 
+    }, 500);
 }
 
 const timeframeButtons = document.querySelectorAll('.timeframe-button');
@@ -146,19 +124,29 @@ timeframeButtons.forEach(button => {
         timeframeButtons.forEach(btn => btn.classList.remove('active'));
         button.classList.add('active');
         const timeframe = button.textContent;
-        updateChartData(timeframe);
+        initialLoad(currentSymbol, timeframe);
     });
 });
 
 const indicatorMenuBtn = document.getElementById('indicator-menu-btn');
 const indicatorDropdown = document.getElementById('indicator-dropdown-content');
-indicatorMenuBtn.addEventListener('click', (event) => {
-    event.stopPropagation();
-    indicatorDropdown.classList.toggle('show');
-});
-window.addEventListener('click', () => {
-    if (indicatorDropdown.classList.contains('show')) {
-        indicatorDropdown.classList.remove('show');
+indicatorDropdown.addEventListener('click', async (event) => {
+    event.preventDefault();
+    const target = event.target;
+    if (target.tagName !== 'A') return;
+    const indicatorId = target.getAttribute('data-indicator');
+    if (!indicatorId) return;
+
+    if (activeIndicators[indicatorId]) {
+        activeIndicators[indicatorId].remove();
+        delete activeIndicators[indicatorId];
+    } else {
+        const indicatorCreator = indicatorFactory[indicatorId];
+        if (indicatorCreator) {
+            const newIndicator = indicatorCreator.create(mainChart, currentCandlestickData);
+            activeIndicators[indicatorId] = newIndicator;
+            newIndicator.addToChart(currentCandlestickData);
+        }
     }
 });
 const indicatorFactory = {
@@ -166,36 +154,79 @@ const indicatorFactory = {
     'macd': { name: 'MACD (12, 26, 9)', create: (mainChart, data) => new MACDIndicator(null, mainChart, mainSeries) },
     'bb': { name: 'Bollinger Bands (20, 2)', create: (mainChart, data) => new BollingerBandsIndicator(mainChart) }
 };
-indicatorDropdown.addEventListener('click', (event) => {
-    event.preventDefault();
-    const target = event.target;
-    if (target.tagName !== 'A') return;
-    const indicatorId = target.getAttribute('data-indicator');
-    if (!indicatorId) return;
+const ohlcContainer = document.querySelector('.ohlc-info');
+
+async function loadMoreHistory() {
+    if (isLoadingMoreData || !initialLoadCompleted || currentCandlestickData.length === 0) {
+        return;
+    }
+    
+    isLoadingMoreData = true;
+    console.log("Đang tải thêm dữ liệu cũ hơn...");
+
+    const oldestDataPoint = currentCandlestickData[0];
+    const toDate = new Date(oldestDataPoint.time.year, oldestDataPoint.time.month - 1, oldestDataPoint.time.day);
+    toDate.setDate(toDate.getDate() - 1);
+
+    const fromDate = new Date(toDate);
+    fromDate.setMonth(fromDate.getMonth() - 6);
+
+    const toDateStr = `${toDate.getFullYear()}-${String(toDate.getMonth() + 1).padStart(2, '0')}-${String(toDate.getDate()).padStart(2, '0')}`;
+    const fromDateStr = `${fromDate.getFullYear()}-${String(fromDate.getMonth() + 1).padStart(2, '0')}-${String(fromDate.getDate()).padStart(2, '0')}`;
+    
     const activeTimeframe = document.querySelector('.timeframe-button.active').textContent;
-    const candlestickData = dataStore[activeTimeframe];
-    if (activeIndicators[indicatorId]) {
-        activeIndicators[indicatorId].remove();
-        delete activeIndicators[indicatorId];
+    const olderData = await dataProvider.getHistory(currentSymbol, activeTimeframe, fromDateStr, toDateStr);
+
+    if (olderData && olderData.length > 0) {
+        
+        const combinedData = [...olderData, ...currentCandlestickData];
+
+        const uniqueDataMap = new Map();
+        combinedData.forEach(item => {
+            const timeKey = `${item.time.year}-${item.time.month}-${item.time.day}`;
+            uniqueDataMap.set(timeKey, item);
+        });
+
+        const uniqueDataArray = Array.from(uniqueDataMap.values());
+        uniqueDataArray.sort((a, b) => {
+            const dateA = new Date(a.time.year, a.time.month - 1, a.time.day);
+            const dateB = new Date(b.time.year, b.time.month - 1, b.time.day);
+            return dateA - dateB;
+        });
+
+        // ▼▼▼ BẮT ĐẦU SỬA LỖI THEO MẪU ▼▼▼
+        setTimeout(() => {
+            currentCandlestickData = uniqueDataArray;
+            applyDataToChart(currentCandlestickData);
+            console.log(`Đã tải và gộp thành công, tổng số nến: ${currentCandlestickData.length}.`);
+            isLoadingMoreData = false;
+        }, 250);
+        // ▲▲▲ KẾT THÚC SỬA LỖI THEO MẪU ▲▲▲
+        
+        return;
     } else {
-        const indicatorCreator = indicatorFactory[indicatorId];
-        if (indicatorCreator) {
-            const newIndicator = indicatorCreator.create(mainChart, candlestickData);
-            activeIndicators[indicatorId] = newIndicator;
-            newIndicator.addToChart(candlestickData);
-        }
+        console.log("Không còn dữ liệu cũ hơn để tải.");
+    }
+
+    isLoadingMoreData = false;
+}
+
+mainChart.timeScale().subscribeVisibleLogicalRangeChange(logicalRange => {
+    if (logicalRange === null) {
+        return;
+    }
+    if (logicalRange.from < 10) {
+        loadMoreHistory();
     }
 });
 
-const ohlcContainer = document.querySelector('.ohlc-info');
+initialLoad(currentSymbol, 'D');
 
-initializeData();
-updateChartData('D');
 
 // ===================================================================================
-// LOGIC VẼ VÀ TƯƠNG TÁC VỚI TREND LINE
+// LOGIC VẼ VÀ TƯƠNG TÁC VỚI TREND LINE (Không thay đổi)
 // ===================================================================================
-
+// ... (Toàn bộ phần code vẽ, di chuyển, xóa trend line giữ nguyên) ...
 const drawTrendLineBtn = document.getElementById('draw-trend-line-btn');
 
 function onChartMouseDown(event, target) {
@@ -344,8 +375,8 @@ function onChartMouseMove(event, target) {
             line._p1.price = price;
             break;
         case 'p2':
-            line._p2.time = time;
-            line._p2.price = price;
+            line._p1.time = time;
+            line._p1.price = price;
             break;
     }
 
