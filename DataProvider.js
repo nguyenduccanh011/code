@@ -3,14 +3,7 @@
 console.log("DataProvider.js đã được nạp.");
 
 class DataProvider {
-    /**
-     * Hàm này gọi API backend để lấy dữ liệu lịch sử.
-     * @param {string} symbol Mã cổ phiếu
-     * @param {string} timeframe Khung thời gian ('D', 'W', 'M')
-     * @param {string} [from] Ngày bắt đầu (YYYY-MM-DD), tùy chọn
-     * @param {string} [to] Ngày kết thúc (YYYY-MM-DD), tùy chọn
-     * @returns {Promise<Array>} Một Promise sẽ resolve với mảng dữ liệu nến.
-     */
+    // ... hàm getHistory không đổi ...
     async getHistory(symbol, timeframe, from, to) {
         console.log(`Bắt đầu yêu cầu dữ liệu THẬT cho ${symbol} - Khung ${timeframe}...`);
 
@@ -57,12 +50,7 @@ class DataProvider {
         }
     }
 
-    // ▼▼▼ THÊM MỚI HÀM NÀY ▼▼▼
-    /**
-     * Lấy thông tin tên đầy đủ của công ty từ backend.
-     * @param {string} symbol Mã cổ phiếu
-     * @returns {Promise<string>} Tên đầy đủ của công ty.
-     */
+    // ... hàm getCompanyInfo không đổi ...
     async getCompanyInfo(symbol) {
         console.log(`Yêu cầu thông tin công ty cho ${symbol}...`);
         const url = `http://127.0.0.1:5000/api/company_info?symbol=${symbol}`;
@@ -77,6 +65,28 @@ class DataProvider {
         } catch (error) {
             console.error("Lỗi khi gọi API lấy thông tin công ty:", error);
             return `Lỗi khi tải thông tin cho ${symbol}`;
+        }
+    }
+    
+    // ▼▼▼ THÊM MỚI HÀM NÀY ▼▼▼
+    /**
+     * Lấy toàn bộ danh sách công ty để phục vụ cho việc tìm kiếm.
+     * @returns {Promise<Array>} Mảng các đối tượng công ty.
+     */
+    async getAllCompanies() {
+        console.log("Đang tải danh sách công ty cho việc tìm kiếm...");
+        const url = `http://127.0.0.1:5000/api/all_companies`;
+        try {
+            const response = await fetch(url);
+            if (!response.ok) {
+                throw new Error(`Lỗi server khi tải danh sách công ty: ${response.status}`);
+            }
+            const data = await response.json();
+            console.log(`Tải thành công ${data.length} công ty.`);
+            return data;
+        } catch (error) {
+            console.error("Lỗi khi tải danh sách công ty:", error);
+            return []; // Trả về mảng rỗng nếu có lỗi
         }
     }
     // ▲▲▲ KẾT THÚC THÊM MỚI ▲▲▲

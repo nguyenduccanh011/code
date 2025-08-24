@@ -35,6 +35,7 @@ let currentSymbol = 'VNINDEX';
 let currentCandlestickData = [];
 let isLoadingMoreData = false;
 let initialLoadCompleted = false;
+let allCompanies = []; // Lưu danh sách tất cả công ty
 
 // --- Biến trạng thái cho việc vẽ Trend Line ---
 let drawingState = 'idle';
@@ -102,20 +103,16 @@ function applyDataToChart(candlestickData) {
 }
 
 async function initialLoad(symbol, timeframe) {
-    // Cập nhật các yếu tố UI ngay lập tức
     document.getElementById('symbol-display').textContent = symbol.toUpperCase();
-    document.getElementById('symbol-description').textContent = "Đang tải tên công ty..."; // Thông báo tạm thời
+    document.getElementById('symbol-description').textContent = "Đang tải tên công ty...";
     mainChart.applyOptions({ watermark: { text: symbol.toUpperCase() } });
 
-    // ▼▼▼ THAY ĐỔI: Gọi API song song để tăng tốc độ ▼▼▼
     const historyPromise = dataProvider.getHistory(symbol, timeframe);
     const companyInfoPromise = dataProvider.getCompanyInfo(symbol);
 
     const [data, companyName] = await Promise.all([historyPromise, companyInfoPromise]);
     
-    // Cập nhật tên công ty sau khi có kết quả
     document.getElementById('symbol-description').textContent = companyName;
-    // ▲▲▲ KẾT THÚC THAY ĐỔI ▲▲▲
 
     initialLoadCompleted = false;
     if (!data || data.length === 0) {
@@ -125,7 +122,18 @@ async function initialLoad(symbol, timeframe) {
         currentCandlestickData = data;
     }
     applyDataToChart(currentCandlestickData);
-    mainChart.timeScale().fitContent();
+
+    // ▼▼▼ THAY THẾ `fitContent` BẰNG LOGIC NÀY ▼▼▼
+    if (currentCandlestickData.length > 0) {
+        const dataLength = currentCandlestickData.length;
+        const visibleBars = 150; // Số lượng nến hiển thị ban đầu (khoảng 7 tháng)
+        const logicalFrom = Math.max(0, dataLength - visibleBars);
+        const logicalTo = dataLength;
+        mainChart.timeScale().setVisibleLogicalRange({ from: logicalFrom, to: logicalTo });
+    } else {
+        mainChart.timeScale().fitContent(); // Dùng lại cách cũ nếu không có dữ liệu
+    }
+    // ▲▲▲ KẾT THÚC THAY THẾ ▲▲▲
 
     setTimeout(() => {
         initialLoadCompleted = true;
@@ -144,6 +152,18 @@ timeframeButtons.forEach(button => {
 
 const indicatorMenuBtn = document.getElementById('indicator-menu-btn');
 const indicatorDropdown = document.getElementById('indicator-dropdown-content');
+
+indicatorMenuBtn.addEventListener('click', (event) => {
+    event.stopPropagation();
+    indicatorDropdown.classList.toggle('show');
+});
+
+window.addEventListener('click', (event) => {
+    if (!indicatorMenuBtn.contains(event.target)) {
+        indicatorDropdown.classList.remove('show');
+    }
+});
+
 indicatorDropdown.addEventListener('click', async (event) => {
     event.preventDefault();
     const target = event.target;
@@ -162,7 +182,9 @@ indicatorDropdown.addEventListener('click', async (event) => {
             newIndicator.addToChart(currentCandlestickData);
         }
     }
+    indicatorDropdown.classList.remove('show');
 });
+
 const indicatorFactory = {
     'rsi': { name: 'RSI (14)', create: (mainChart, data) => new RSIIndicator(rsiChartContainer, mainChart, mainSeries) },
     'macd': { name: 'MACD (12, 26, 9)', create: (mainChart, data) => new MACDIndicator(null, mainChart, mainSeries) },
@@ -170,20 +192,117 @@ const indicatorFactory = {
 };
 const ohlcContainer = document.querySelector('.ohlc-info');
 
-const symbolSearchInput = document.getElementById('symbol-search-input');
-symbolSearchInput.addEventListener('keyup', (event) => {
-    if (event.key === 'Enter') {
-        const newSymbol = symbolSearchInput.value.trim().toUpperCase();
+function initializeSearch() {
+    const searchInput = document.getElementById('symbol-search-input');
+    const suggestionsContainer = document.getElementById('search-suggestions');
+    let activeIndex = -1;
 
-        if (newSymbol && newSymbol !== currentSymbol) {
-            currentSymbol = newSymbol;
-            const activeTimeframe = document.querySelector('.timeframe-button.active').textContent;
-            initialLoad(currentSymbol, activeTimeframe);
-            symbolSearchInput.value = ''; 
-            symbolSearchInput.blur();     
+    dataProvider.getAllCompanies().then(data => {
+        allCompanies = data;
+    });
+    
+    const updateHighlight = () => {
+        const items = suggestionsContainer.querySelectorAll('.suggestion-item');
+        items.forEach((item, index) => {
+            if (index === activeIndex) {
+                item.classList.add('active');
+                item.scrollIntoView({ block: 'nearest' });
+            } else {
+                item.classList.remove('active');
+            }
+        });
+    };
+
+    searchInput.addEventListener('input', () => {
+        const query = searchInput.value.toUpperCase();
+        activeIndex = -1;
+        if (query.length < 1) {
+            suggestionsContainer.style.display = 'none';
+            return;
         }
-    }
-});
+
+        let filtered = allCompanies.filter(c => {
+            const symbolMatch = c.symbol.toUpperCase().startsWith(query);
+            if (query.length <= 2) {
+                return symbolMatch;
+            }
+            const nameMatch = c.organ_name && c.organ_name.toUpperCase().includes(query);
+            return symbolMatch || nameMatch;
+        });
+
+        filtered.sort((a, b) => {
+            const aSymbol = a.symbol.toUpperCase();
+            const bSymbol = b.symbol.toUpperCase();
+            if (aSymbol === query) return -1;
+            if (bSymbol === query) return 1;
+            const aStartsWith = aSymbol.startsWith(query);
+            const bStartsWith = bSymbol.startsWith(query);
+            if (aStartsWith && !bStartsWith) return -1;
+            if (!aStartsWith && bStartsWith) return 1;
+            return aSymbol.localeCompare(bSymbol);
+        });
+
+        suggestionsContainer.innerHTML = '';
+        if (filtered.length > 0) {
+            const topResults = filtered.slice(0, 50);
+
+            topResults.forEach(company => {
+                const item = document.createElement('div');
+                item.className = 'suggestion-item';
+                item.innerHTML = `<span class="suggestion-symbol">${company.symbol}</span><span class="suggestion-name">${company.organ_name || 'N/A'}</span>`;
+                
+                item.addEventListener('mousedown', (e) => {
+                    e.preventDefault();
+                    currentSymbol = company.symbol;
+                    const activeTimeframe = document.querySelector('.timeframe-button.active').textContent;
+                    initialLoad(currentSymbol, activeTimeframe);
+                    
+                    searchInput.value = '';
+                    suggestionsContainer.style.display = 'none';
+                    searchInput.blur();
+                });
+                suggestionsContainer.appendChild(item);
+            });
+            suggestionsContainer.style.display = 'block';
+        } else {
+            suggestionsContainer.style.display = 'none';
+        }
+    });
+
+    searchInput.addEventListener('keydown', (e) => {
+        const items = suggestionsContainer.querySelectorAll('.suggestion-item');
+        if (suggestionsContainer.style.display === 'none') return;
+
+        if (e.key === 'ArrowDown') {
+            e.preventDefault();
+            activeIndex = (activeIndex + 1) % items.length;
+            updateHighlight();
+        } else if (e.key === 'ArrowUp') {
+            e.preventDefault();
+            activeIndex = (activeIndex - 1 + items.length) % items.length;
+            updateHighlight();
+        } else if (e.key === 'Enter') {
+            e.preventDefault();
+            if (activeIndex > -1) {
+                items[activeIndex].dispatchEvent(new MouseEvent('mousedown'));
+            } else if (items.length > 0) {
+                items[0].dispatchEvent(new MouseEvent('mousedown'));
+            }
+        }
+    });
+
+    searchInput.addEventListener('focus', () => {
+        if (searchInput.value.length > 0 && suggestionsContainer.children.length > 0) {
+             suggestionsContainer.style.display = 'block';
+        }
+    });
+
+    searchInput.addEventListener('blur', () => {
+        setTimeout(() => {
+            suggestionsContainer.style.display = 'none';
+        }, 200); 
+    });
+}
 
 async function loadMoreHistory() {
     if (isLoadingMoreData || !initialLoadCompleted || currentCandlestickData.length === 0) {
@@ -248,10 +367,11 @@ mainChart.timeScale().subscribeVisibleLogicalRangeChange(logicalRange => {
 });
 
 initialLoad(currentSymbol, 'D');
+initializeSearch();
 
 
 // ===================================================================================
-// LOGIC VẼ VÀ TƯƠNG TÁC VỚI TREND LINE (Không thay đổi)
+// LOGIC VẼ VÀ TƯƠNG TÁC VỚI TREND LINE (Toàn bộ phần này giữ nguyên)
 // ===================================================================================
 const drawTrendLineBtn = document.getElementById('draw-trend-line-btn');
 
