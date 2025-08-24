@@ -86,6 +86,7 @@ const sma20LineSeries = mainChart.addLineSeries({ color: 'rgba(255, 109, 0, 1)',
 syncManager.addChart(mainChart, mainSeries);
 // --- KHỞI TẠO TRÌNH QUẢN LÝ CHIẾN LƯỢC ---
 const strategyManager = new StrategyManager(mainChart, mainSeries);
+const strategyEngine = new StrategyEngine(mainChart, mainSeries);
 let isStrategyActive = false; // Biến trạng thái để bật/tắt chiến lược
 
 
@@ -264,6 +265,177 @@ timeframeButtons.forEach(button => {
 
 // --- THÊM TRÌNH XỬ LÝ SỰ KIỆN CHO NÚT CHIẾN LƯỢC ---
 const strategyBtn = document.getElementById('strategy-sma-cross-btn');
+
+// --- THÊM TRÌNH XỬ LÝ SỰ KIỆN CHO STRATEGY BUILDER ---
+const strategyBuilderBtn = document.getElementById('strategy-builder-btn');
+const strategyBuilderPanel = document.getElementById('strategy-builder-panel');
+const closeStrategyBuilderBtn = document.getElementById('close-strategy-builder');
+
+// Mở Strategy Builder Panel
+strategyBuilderBtn.addEventListener('click', () => {
+    strategyBuilderPanel.style.display = 'block';
+});
+
+// Đóng Strategy Builder Panel
+closeStrategyBuilderBtn.addEventListener('click', () => {
+    strategyBuilderPanel.style.display = 'none';
+});
+
+// Đóng panel khi click bên ngoài
+window.addEventListener('click', (event) => {
+    if (event.target === strategyBuilderPanel) {
+        strategyBuilderPanel.style.display = 'none';
+    }
+});
+
+// Logic thêm/xóa điều kiện
+function addCondition(containerId, conditionType = 'sma-crossover') {
+    const container = document.getElementById(containerId);
+    const conditionItem = document.createElement('div');
+    conditionItem.className = 'condition-item';
+    
+    let paramsHtml = '';
+    if (conditionType === 'sma-crossover') {
+        paramsHtml = `
+            <input type="number" class="param-input" placeholder="9" min="1" max="100">
+            <span>cắt lên</span>
+            <input type="number" class="param-input" placeholder="20" min="1" max="100">
+        `;
+    } else if (conditionType === 'rsi') {
+        paramsHtml = `
+            <span>RSI</span>
+            <select class="param-input">
+                <option value="<"><</option>
+                <option value=">">></option>
+            </select>
+            <input type="number" class="param-input" placeholder="30" min="0" max="100">
+        `;
+    } else if (conditionType === 'price') {
+        paramsHtml = `
+            <span>Giá</span>
+            <select class="param-input">
+                <option value="<"><</option>
+                <option value=">">></option>
+            </select>
+            <input type="number" class="param-input" placeholder="1000" min="0" step="0.01">
+        `;
+    }
+    
+    conditionItem.innerHTML = `
+        <select class="condition-type">
+            <option value="sma-crossover">SMA Crossover</option>
+            <option value="rsi">RSI</option>
+            <option value="price">Giá</option>
+        </select>
+        <div class="condition-params">
+            ${paramsHtml}
+        </div>
+        <button class="remove-condition-btn">&times;</button>
+    `;
+    
+    // Xử lý thay đổi loại điều kiện
+    const typeSelect = conditionItem.querySelector('.condition-type');
+    typeSelect.addEventListener('change', (e) => {
+        const newType = e.target.value;
+        const paramsDiv = conditionItem.querySelector('.condition-params');
+        let newParamsHtml = '';
+        
+        if (newType === 'sma-crossover') {
+            newParamsHtml = `
+                <input type="number" class="param-input" placeholder="9" min="1" max="100">
+                <span>cắt lên</span>
+                <input type="number" class="param-input" placeholder="20" min="1" max="100">
+            `;
+        } else if (newType === 'rsi') {
+            newParamsHtml = `
+                <span>RSI</span>
+                <select class="param-input">
+                    <option value="<"><</option>
+                    <option value=">">></option>
+                </select>
+                <input type="number" class="param-input" placeholder="30" min="0" max="100">
+            `;
+        } else if (newType === 'price') {
+            newParamsHtml = `
+                <span>Giá</span>
+                <select class="param-input">
+                    <option value="<"><</option>
+                    <option value=">">></option>
+                </select>
+                <input type="number" class="param-input" placeholder="1000" min="0" step="0.01">
+            `;
+        }
+        
+        paramsDiv.innerHTML = newParamsHtml;
+    });
+    
+    // Xử lý xóa điều kiện
+    const removeBtn = conditionItem.querySelector('.remove-condition-btn');
+    removeBtn.addEventListener('click', () => {
+        conditionItem.remove();
+    });
+    
+    container.appendChild(conditionItem);
+}
+
+// Thêm điều kiện mua
+document.getElementById('add-buy-condition').addEventListener('click', () => {
+    addCondition('buy-conditions');
+});
+
+// Thêm điều kiện bán
+document.getElementById('add-sell-condition').addEventListener('click', () => {
+    addCondition('sell-conditions');
+});
+
+// Xử lý nút Test Strategy
+document.getElementById('test-strategy-btn').addEventListener('click', () => {
+    console.log('Testing strategy...');
+    
+    if (!currentCandlestickData || currentCandlestickData.length === 0) {
+        alert('Không có dữ liệu để test chiến lược. Vui lòng tải dữ liệu trước.');
+        return;
+    }
+    
+    try {
+        // Chạy chiến lược từ Strategy Builder
+        const markers = strategyEngine.runStrategy(currentCandlestickData);
+        
+        if (markers.length > 0) {
+            // Hiển thị kết quả
+            strategyEngine.displayMarkers(markers);
+            alert(`Chiến lược đã chạy thành công! Tìm thấy ${markers.length} tín hiệu.`);
+            
+            // Tự động zoom đến tín hiệu đầu tiên
+            const firstMarkerTime = markers[0].time;
+            const dataWithTime = currentCandlestickData.map((d, index) => ({...d, originalIndex: index}));
+            const dataPoint = dataWithTime.find(d => areTimesEqual(d.time, firstMarkerTime));
+            
+            if (dataPoint) {
+                mainChart.timeScale().scrollToPosition(dataPoint.originalIndex, true);
+            }
+        } else {
+            alert('Chiến lược đã chạy nhưng không tìm thấy tín hiệu nào trong khoảng thời gian hiện tại.');
+        }
+    } catch (error) {
+        console.error('Lỗi khi chạy chiến lược:', error);
+        alert('Có lỗi xảy ra khi chạy chiến lược: ' + error.message);
+    }
+});
+
+// Xử lý nút Save Strategy
+document.getElementById('save-strategy-btn').addEventListener('click', () => {
+    console.log('Saving strategy...');
+    // TODO: Implement strategy saving logic
+    alert('Tính năng Save Strategy sẽ được implement trong bước tiếp theo!');
+});
+
+// Xử lý nút Load Strategy
+document.getElementById('load-strategy-btn').addEventListener('click', () => {
+    console.log('Loading strategy...');
+    // TODO: Implement strategy loading logic
+    alert('Tính năng Load Strategy sẽ được implement trong bước tiếp theo!');
+});
 strategyBtn.addEventListener('click', () => {
     isStrategyActive = !isStrategyActive;
 
