@@ -78,6 +78,87 @@ const smaLineSeries = mainChart.addLineSeries({ color: 'rgba(4, 111, 232, 1)', l
 
 syncManager.addChart(mainChart, mainSeries);
 
+
+// ▼▼▼ KHỐI CODE MỚI ĐỂ CẬP NHẬT SIDEBAR ▼▼▼
+// ===================================================================================
+// LOGIC CẬP NHẬT SIDEBAR
+// ===================================================================================
+function formatLargeNumber(num) {
+    if (!num || isNaN(num)) return '---';
+    if (num >= 1e9) {
+        return (num / 1e9).toFixed(2) + ' tỷ';
+    }
+    if (num >= 1e6) {
+        return (num / 1e6).toFixed(1) + ' tr';
+    }
+    if (num >= 1e3) {
+        return (num / 1e3).toFixed(0) + ' k';
+    }
+    return num.toLocaleString();
+}
+
+function updateSidebar(latestData, previousData) {
+    const priceEl = document.getElementById('sidebar-price');
+    const changeEl = document.getElementById('sidebar-change');
+    const percentChangeEl = document.getElementById('sidebar-percent-change');
+    const highEl = document.getElementById('sidebar-high');
+    const lowEl = document.getElementById('sidebar-low');
+    const openEl = document.getElementById('sidebar-open');
+    const refEl = document.getElementById('sidebar-ref');
+    const volumeEl = document.getElementById('sidebar-volume');
+    const valueEl = document.getElementById('sidebar-value');
+
+    if (!latestData) {
+        [priceEl, changeEl, percentChangeEl, highEl, lowEl, openEl, refEl, volumeEl, valueEl].forEach(el => {
+            if (el) el.textContent = '---';
+        });
+        return;
+    }
+
+    const close = latestData.close;
+    const refPrice = previousData ? previousData.close : latestData.open;
+    const change = close - refPrice;
+    const percentChange = refPrice === 0 ? 0 : (change / refPrice) * 100;
+
+    // ▼▼▼ THÊM TÍNH TOÁN VÀ HIỂN THỊ GTGD ▼▼▼
+    const tradingValue = latestData.close * latestData.volume;
+    valueEl.textContent = formatLargeNumber(tradingValue);
+    // ▲▲▲ KẾT THÚC THÊM MỚI ▲▲▲
+    
+    priceEl.textContent = close.toFixed(2);
+    changeEl.textContent = `${change >= 0 ? '+' : ''}${change.toFixed(2)}`;
+    percentChangeEl.textContent = `${percentChange.toFixed(2)}%`;
+
+    highEl.textContent = latestData.high.toFixed(2);
+    lowEl.textContent = latestData.low.toFixed(2);
+    openEl.textContent = latestData.open.toFixed(2);
+    refEl.textContent = refPrice.toFixed(2);
+    volumeEl.textContent = formatLargeNumber(latestData.volume);
+    
+    // Cập nhật màu sắc
+    const elementsToColor = [priceEl, changeEl, percentChangeEl, highEl, lowEl, openEl];
+    elementsToColor.forEach(el => el.classList.remove('color-red', 'color-green', 'color-yellow'));
+    
+    let colorClass = 'color-yellow';
+    if (change > 0) colorClass = 'color-green';
+    else if (change < 0) colorClass = 'color-red';
+
+    [priceEl, changeEl, percentChangeEl].forEach(el => el.classList.add(colorClass));
+
+    const priceFields = [
+        { el: highEl, value: latestData.high },
+        { el: lowEl, value: latestData.low },
+        { el: openEl, value: latestData.open },
+    ];
+    priceFields.forEach(field => {
+        if (field.value > refPrice) field.el.classList.add('color-green');
+        else if (field.value < refPrice) field.el.classList.add('color-red');
+        else field.el.classList.add('color-yellow');
+    });
+}
+// ▲▲▲ KẾT THÚC KHỐI CODE MỚI ▲▲▲
+
+
 // ===================================================================================
 // LOGIC CẬP NHẬT DỮ LIỆU VÀ SỰ KIỆN
 // ===================================================================================
@@ -100,12 +181,22 @@ function applyDataToChart(candlestickData) {
             activeIndicators[id].update(candlestickData);
         }
     }
+
+    // ▼▼▼ THÊM LOGIC GỌI `updateSidebar` TẠI ĐÂY ▼▼▼
+    if (candlestickData && candlestickData.length > 0) {
+        const lastDataPoint = candlestickData[candlestickData.length - 1];
+        const previousDataPoint = candlestickData.length > 1 ? candlestickData[candlestickData.length - 2] : null;
+        updateSidebar(lastDataPoint, previousDataPoint);
+    }
+    // ▲▲▲ KẾT THÚC THÊM ▲▲▲
 }
 
 async function initialLoad(symbol, timeframe) {
     document.getElementById('symbol-display').textContent = symbol.toUpperCase();
     document.getElementById('symbol-description').textContent = "Đang tải tên công ty...";
     mainChart.applyOptions({ watermark: { text: symbol.toUpperCase() } });
+
+    // Dòng updateSidebar(symbol) cũ đã bị xóa khỏi đây.
 
     const historyPromise = dataProvider.getHistory(symbol, timeframe);
     const companyInfoPromise = dataProvider.getCompanyInfo(symbol);
@@ -123,17 +214,15 @@ async function initialLoad(symbol, timeframe) {
     }
     applyDataToChart(currentCandlestickData);
 
-    // ▼▼▼ THAY THẾ `fitContent` BẰNG LOGIC NÀY ▼▼▼
     if (currentCandlestickData.length > 0) {
         const dataLength = currentCandlestickData.length;
-        const visibleBars = 150; // Số lượng nến hiển thị ban đầu (khoảng 7 tháng)
+        const visibleBars = 150;
         const logicalFrom = Math.max(0, dataLength - visibleBars);
         const logicalTo = dataLength;
         mainChart.timeScale().setVisibleLogicalRange({ from: logicalFrom, to: logicalTo });
     } else {
-        mainChart.timeScale().fitContent(); // Dùng lại cách cũ nếu không có dữ liệu
+        mainChart.timeScale().fitContent();
     }
-    // ▲▲▲ KẾT THÚC THAY THẾ ▲▲▲
 
     setTimeout(() => {
         initialLoadCompleted = true;
@@ -371,7 +460,7 @@ initializeSearch();
 
 
 // ===================================================================================
-// LOGIC VẼ VÀ TƯƠNG TÁC VỚI TREND LINE (Toàn bộ phần này giữ nguyên)
+// LOGIC VẼ VÀ TƯƠNG TÁC VỚI TREND LINE
 // ===================================================================================
 const drawTrendLineBtn = document.getElementById('draw-trend-line-btn');
 

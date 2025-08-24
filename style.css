@@ -405,3 +405,63 @@ body {
     color: #555;
     margin-left: 8px;
 }
+
+.right-sidebar {
+    grid-column: 3 / 4;
+    grid-row: 2 / 3;
+    background-color: white;
+    padding: 15px;
+    font-size: 0.9em;
+    color: #333;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start; /* Gỡ bỏ justify-content và align-items cũ */
+    justify-content: flex-start;
+}
+
+.market-data-panel {
+    width: 100%;
+}
+
+.price-section {
+    margin-bottom: 20px;
+    padding-bottom: 15px;
+    border-bottom: 1px solid #f0f3f5;
+}
+
+.current-price {
+    font-size: 2.2em;
+    font-weight: 500;
+    margin-bottom: 5px;
+}
+
+.price-change {
+    font-size: 1.2em;
+}
+
+/* Các lớp màu cho giá tăng/giảm */
+.color-green { color: #26a69a; }
+.color-red { color: #ef5350; }
+.color-yellow { color: #ffc107; }
+
+
+.stats-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+    width: 100%;
+}
+
+.stat-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.stat-label {
+    color: #888;
+}
+
+.stat-value {
+    font-weight: 500;
+}

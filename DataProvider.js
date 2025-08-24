@@ -3,7 +3,6 @@
 console.log("DataProvider.js đã được nạp.");
 
 class DataProvider {
-    // ... hàm getHistory không đổi ...
     async getHistory(symbol, timeframe, from, to) {
         console.log(`Bắt đầu yêu cầu dữ liệu THẬT cho ${symbol} - Khung ${timeframe}...`);
 
@@ -50,7 +49,6 @@ class DataProvider {
         }
     }
 
-    // ... hàm getCompanyInfo không đổi ...
     async getCompanyInfo(symbol) {
         console.log(`Yêu cầu thông tin công ty cho ${symbol}...`);
         const url = `http://127.0.0.1:5000/api/company_info?symbol=${symbol}`;
@@ -68,11 +66,6 @@ class DataProvider {
         }
     }
     
-    // ▼▼▼ THÊM MỚI HÀM NÀY ▼▼▼
-    /**
-     * Lấy toàn bộ danh sách công ty để phục vụ cho việc tìm kiếm.
-     * @returns {Promise<Array>} Mảng các đối tượng công ty.
-     */
     async getAllCompanies() {
         console.log("Đang tải danh sách công ty cho việc tìm kiếm...");
         const url = `http://127.0.0.1:5000/api/all_companies`;
@@ -86,7 +79,28 @@ class DataProvider {
             return data;
         } catch (error) {
             console.error("Lỗi khi tải danh sách công ty:", error);
-            return []; // Trả về mảng rỗng nếu có lỗi
+            return []; 
+        }
+    }
+
+    // ▼▼▼ THÊM MỚI HÀM NÀY ▼▼▼
+    /**
+     * Lấy dữ liệu thị trường cho một mã chứng khoán.
+     * @param {string} symbol Mã chứng khoán.
+     * @returns {Promise<Object|null>} Dữ liệu thị trường hoặc null nếu lỗi.
+     */
+    async getMarketData(symbol) {
+        const url = `http://127.0.0.1:5000/api/market_data?symbol=${symbol}`;
+        try {
+            const response = await fetch(url);
+            if (!response.ok) {
+                throw new Error(`Lỗi server khi lấy dữ liệu thị trường: ${response.status}`);
+            }
+            const data = await response.json();
+            return data;
+        } catch (error) {
+            console.error(`Lỗi khi gọi API lấy dữ liệu thị trường cho ${symbol}:`, error);
+            return null;
         }
     }
     // ▲▲▲ KẾT THÚC THÊM MỚI ▲▲▲

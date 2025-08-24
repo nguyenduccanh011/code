@@ -24,13 +24,13 @@
                 </div>
             <div class="right-header"> <div class="tools-selector">
                 <div class="indicator-menu">
-    <button class="tool-button" id="indicator-menu-btn">Chỉ báo</button>
-    <div class="indicator-dropdown" id="indicator-dropdown-content">
-        <a href="#" data-indicator="rsi">RSI (14)</a>
-         <a href="#" data-indicator="macd">MACD (12, 26, 9)</a>
-         <a href="#" data-indicator="bb">Bollinger Bands (20, 2)</a>
-        </div>
-</div>
+                    <button class="tool-button" id="indicator-menu-btn">Chỉ báo</button>
+                    <div class="indicator-dropdown" id="indicator-dropdown-content">
+                        <a href="#" data-indicator="rsi">RSI (14)</a>
+                        <a href="#" data-indicator="macd">MACD (12, 26, 9)</a>
+                        <a href="#" data-indicator="bb">Bollinger Bands (20, 2)</a>
+                    </div>
+                </div>
             </div>
             <div class="timeframe-selector">
                 <button class="timeframe-button active">D</button>
@@ -40,16 +40,55 @@
         </header>
         <aside class="left-toolbar">
             <button class="toolbar-button" id="draw-trend-line-btn">
-        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24" 24" width="24" height="24">
-            <path fill="currentColor" d="M3.707 20.293a1 1 0 0 0 1.414 0l16-16a1 1 0 0 0-1.414-1.414l-16 16a1 1 0 0 0 0 1.414Z"/>
-        </svg>
-    </button>
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24">
+                    <path fill="currentColor" d="M3.707 20.293a1 1 0 0 0 1.414 0l16-16a1 1 0 0 0-1.414-1.414l-16 16a1 1 0 0 0 0 1.414Z"/>
+                </svg>
+            </button>
         </aside>
 
-        <main class="main-chart"> <div id="main-chart-container"></div> <div id="rsi-chart-container"></div> </main>
+        <main class="main-chart">
+            <div id="main-chart-container"></div>
+            <div id="rsi-chart-container"></div>
+        </main>
 
-        <aside class="right-sidebar">SIDEBAR</aside>
-    </div>
+        <aside class="right-sidebar">
+            <div class="market-data-panel">
+                <div class="price-section">
+                    <div id="sidebar-price" class="current-price">---</div>
+                    <div class="price-change">
+                        <span id="sidebar-change">---</span>
+                        (<span id="sidebar-percent-change">---</span>)
+                    </div>
+                </div>
+                <div class="stats-grid">
+                    <div class="stat-item">
+                        <span class="stat-label">Cao nhất</span>
+                        <span id="sidebar-high" class="stat-value">---</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-label">Thấp nhất</span>
+                        <span id="sidebar-low" class="stat-value">---</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-label">Mở cửa</span>
+                        <span id="sidebar-open" class="stat-value">---</span>
+                    </div>
+                     <div class="stat-item">
+                        <span class="stat-label">Tham chiếu</span>
+                        <span id="sidebar-ref" class="stat-value">---</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-label">KLGD</span>
+                        <span id="sidebar-volume" class="stat-value">---</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-label">GTGD</span>
+                        <span id="sidebar-value" class="stat-value">---</span>
+                    </div>
+                </div>
+            </div>
+        </aside>
+        </div>
 
     <script src="https://unpkg.com/lightweight-charts@4.1.0/dist/lightweight-charts.standalone.production.js"></script>
     <script src="ChartSyncManager.js"></script>
