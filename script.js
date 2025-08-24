@@ -4,8 +4,10 @@
 
 function areTimesEqual(time1, time2) {
     if (!time1 || !time2) return false;
-    return time1.year === time2.year && time1.month === time2.month && time1.day === time2.day;
+    // So sánh chuỗi JSON để đảm bảo tất cả các thành phần thời gian khớp nhau
+    return JSON.stringify(time1) === JSON.stringify(time2);
 }
+
 
 function calculateSMA(data, period) {
     let smaData = [];
@@ -29,6 +31,7 @@ function calculateSMA(data, period) {
 const syncManager = new ChartSyncManager();
 const activeIndicators = {};
 const dataProvider = new DataProvider();
+
 
 // --- Biến quản lý dữ liệu và trạng thái tải ---
 let currentSymbol = 'VNINDEX';
@@ -76,7 +79,14 @@ const volumeSeries = mainChart.addHistogramSeries({ priceFormat: { type: 'volume
 mainChart.priceScale('').applyOptions({ scaleMargins: { top: 0.8, bottom: 0 } });
 const smaLineSeries = mainChart.addLineSeries({ color: 'rgba(4, 111, 232, 1)', lineWidth: 2, crosshairMarkerVisible: false });
 
+// ▼▼▼ THÊM DÒNG NÀY ĐỂ TẠO SERIES CHO SMA 20 ▼▼▼
+const sma20LineSeries = mainChart.addLineSeries({ color: 'rgba(255, 109, 0, 1)', lineWidth: 2, crosshairMarkerVisible: false });
+
+
 syncManager.addChart(mainChart, mainSeries);
+// --- KHỞI TẠO TRÌNH QUẢN LÝ CHIẾN LƯỢC ---
+const strategyManager = new StrategyManager(mainChart, mainSeries);
+let isStrategyActive = false; // Biến trạng thái để bật/tắt chiến lược
 
 
 // ▼▼▼ KHỐI CODE MỚI ĐỂ CẬP NHẬT SIDEBAR ▼▼▼
@@ -176,11 +186,24 @@ function applyDataToChart(candlestickData) {
     const smaData = calculateSMA(candlestickData, 9);
     smaLineSeries.setData(smaData);
 
+    // ▼▼▼ THÊM LOGIC TÍNH TOÁN VÀ VẼ SMA 20 ▼▼▼
+    const sma20Data = calculateSMA(candlestickData, 20);
+    sma20LineSeries.setData(sma20Data);
+
+
     for (const id in activeIndicators) {
         if (activeIndicators[id] && typeof activeIndicators[id].update === 'function') {
             activeIndicators[id].update(candlestickData);
         }
     }
+     // Nếu chiến lược đang được kích hoạt, chạy lại nó với dữ liệu mới
+    if (isStrategyActive) {
+        const markers = strategyManager.runSMACrossoverStrategy(candlestickData);
+        strategyManager.displayMarkers(markers);
+    } else {
+        strategyManager.clearMarkers(); // Xóa marker nếu chiến lược không active
+    }
+
 
     // ▼▼▼ THÊM LOGIC GỌI `updateSidebar` TẠI ĐÂY ▼▼▼
     if (candlestickData && candlestickData.length > 0) {
@@ -214,7 +237,7 @@ async function initialLoad(symbol, timeframe) {
     }
     applyDataToChart(currentCandlestickData);
 
-    if (currentCandlestickData.length > 0) {
+    if (currentCandlestickData.length > 0 && !isStrategyActive) { // Chỉ tự động zoom khi không chạy strategy
         const dataLength = currentCandlestickData.length;
         const visibleBars = 150;
         const logicalFrom = Math.max(0, dataLength - visibleBars);
@@ -237,6 +260,33 @@ timeframeButtons.forEach(button => {
         const timeframe = button.textContent;
         initialLoad(currentSymbol, timeframe);
     });
+});
+
+// --- THÊM TRÌNH XỬ LÝ SỰ KIỆN CHO NÚT CHIẾN LƯỢC ---
+const strategyBtn = document.getElementById('strategy-sma-cross-btn');
+strategyBtn.addEventListener('click', () => {
+    isStrategyActive = !isStrategyActive;
+
+    if (isStrategyActive) {
+        strategyBtn.classList.add('active');
+        const markers = strategyManager.runSMACrossoverStrategy(currentCandlestickData);
+        strategyManager.displayMarkers(markers);
+        
+        if (markers.length > 0) {
+            const firstMarkerTime = markers[0].time;
+            const dataWithTime = currentCandlestickData.map((d, index) => ({...d, originalIndex: index}));
+            
+            const dataPoint = dataWithTime.find(d => areTimesEqual(d.time, firstMarkerTime));
+            
+            if (dataPoint) {
+                 mainChart.timeScale().scrollToPosition(dataPoint.originalIndex, true);
+            }
+        }
+
+    } else {
+        strategyBtn.classList.remove('active');
+        strategyManager.clearMarkers();
+    }
 });
 
 const indicatorMenuBtn = document.getElementById('indicator-menu-btn');

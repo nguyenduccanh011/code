@@ -5,8 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Biểu đồ Chứng khoán</title>
     <link rel="stylesheet" href="style.css">
-</head>
-<body>
+</head><body>
 
     <div class="container">
         <header class="header">
@@ -22,7 +21,11 @@
                 <div class="ohlc-info">
                     </div>
                 </div>
-            <div class="right-header"> <div class="tools-selector">
+            <div class="right-header">
+                 <div class="strategy-selector">
+                    <button class="tool-button" id="strategy-sma-cross-btn">Chạy SMA Cross</button>
+                </div>
+                <div class="tools-selector">
                 <div class="indicator-menu">
                     <button class="tool-button" id="indicator-menu-btn">Chỉ báo</button>
                     <div class="indicator-dropdown" id="indicator-dropdown-content">
@@ -96,6 +99,7 @@
     <script src="BollingerBandsIndicator.js"></script>
     <script src="RSIIndicator.js"></script>
     <script src="TrendLinePrimitive.js"></script>
+    <script src="StrategyManager.js"></script>
     
     <script src="DataProvider.js"></script>
     <script src="script.js"></script>

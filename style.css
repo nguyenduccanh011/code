@@ -465,3 +465,19 @@ body {
 .stat-value {
     font-weight: 500;
 }
+
+.right-header {
+    display: flex;
+    align-items: center;
+}
+
+.strategy-selector {
+     margin-right: 15px;
+}
+
+/* Thêm class active cho tool-button */
+.tool-button.active {
+    background-color: #e0eefd;
+    color: #2962ff;
+    border-color: #2962ff;
+}
