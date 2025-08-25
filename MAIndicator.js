@@ -1,5 +1,5 @@
 class MAIndicator {
-    constructor(mainChart, options = { period: 20, color: 'rgba(41, 98, 255, 1)' }) {
+    constructor(mainChart, options = { period: 9, color: 'rgba(41, 98, 255, 1)' }) {
         this.mainChart = mainChart;
         this.options = options;
         this.series = null;
@@ -34,6 +34,21 @@ class MAIndicator {
         if (!this.series) return;
         const maData = this.calculate(data);
         this.series.setData(maData);
+    }
+
+    setOptions(options = {}, data = []) {
+        if (options.period !== undefined) {
+            this.options.period = options.period;
+        }
+        if (options.color !== undefined) {
+            this.options.color = options.color;
+            if (this.series) {
+                this.series.applyOptions({ color: this.options.color });
+            }
+        }
+        if (data.length > 0) {
+            this.update(data);
+        }
     }
 
     remove() {
