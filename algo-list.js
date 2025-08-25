@@ -83,4 +83,29 @@ class AlgoList {
 document.addEventListener('DOMContentLoaded', () => {
     const algoList = new AlgoList();
     algoList.init();
+
+    const authorizeBtn = document.getElementById('authorize-algo-btn');
+    if (authorizeBtn) {
+        authorizeBtn.addEventListener('click', () => strategyBuilderUI.open());
+    }
+
+    document.addEventListener('strategy-saved', (e) => {
+        const s = e.detail;
+        const existingIdx = algoList.algorithms.findIndex(a => a.name === s.name);
+        const entry = {
+            name: s.name,
+            code: s.code || 'N/A',
+            platform: s.platform || 'Builder',
+            winrate: s.winrate || '--',
+            mdd: s.mdd || '--',
+            profit: s.profit || '--',
+            change: s.change || '--'
+        };
+        if (existingIdx >= 0) {
+            algoList.algorithms[existingIdx] = entry;
+        } else {
+            algoList.algorithms.push(entry);
+        }
+        algoList.render();
+    });
 });

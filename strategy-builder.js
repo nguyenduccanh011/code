@@ -12,7 +12,9 @@ class StrategyBuilderUI {
     }
 
     registerEvents() {
-        this.openBtn.addEventListener('click', () => this.open());
+        if (this.openBtn) {
+            this.openBtn.addEventListener('click', () => this.open());
+        }
         this.closeBtn.addEventListener('click', () => this.close());
 
         window.addEventListener('click', (event) => {
@@ -175,11 +177,10 @@ class StrategyBuilderUI {
     saveStrategy() {
         const config = strategyEngine.readStrategyConfig();
         const code = prompt('Nhập mã chiến lược (ví dụ: VN30F1M):', '');
-        const platform = prompt('Nhập nền tảng (ví dụ: MB):', '');
         const strategy = {
             ...config,
             code: code || 'N/A',
-            platform: platform || 'Builder',
+            platform: 'Builder',
             winrate: '--',
             mdd: '--',
             profit: '--',
@@ -194,6 +195,8 @@ class StrategyBuilderUI {
         }
         localStorage.setItem('savedStrategies', JSON.stringify(saved));
         alert(`Đã lưu chiến lược "${strategy.name}"`);
+        document.dispatchEvent(new CustomEvent('strategy-saved', { detail: strategy }));
+        this.close();
     }
 
     loadStrategy() {
