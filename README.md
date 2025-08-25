@@ -41,15 +41,27 @@
 ```
 code/
 ├── index.html              # Giao diện chính
-├── script.js               # Logic chính của ứng dụng
-├── style.css               # Styling và layout
-├── DataProvider.js         # Quản lý dữ liệu và API calls
-├── ChartSyncManager.js     # Đồng bộ biểu đồ
-├── StrategyManager.js      # Quản lý chiến lược giao dịch
-├── RSIIndicator.js         # Chỉ báo RSI
-├── MACDIndicator.js        # Chỉ báo MACD
-├── BollingerBandsIndicator.js # Chỉ báo Bollinger Bands
-├── TrendLinePrimitive.js   # Công cụ vẽ đường xu hướng
+├── algo-list.html          # Trang danh sách thuật toán
+├── css/
+│   ├── style.css           # Styling và layout
+│   └── algo-list.css       # Styling cho trang danh sách algo
+├── src/
+│   ├── core/
+│   │   ├── ChartSyncManager.js     # Đồng bộ biểu đồ
+│   │   ├── DataProvider.js         # Quản lý dữ liệu và API calls
+│   │   ├── StrategyManager.js      # Quản lý chiến lược giao dịch
+│   │   └── StrategyEngine.js       # Bộ máy chiến lược
+│   ├── indicators/
+│   │   ├── BollingerBandsIndicator.js # Chỉ báo Bollinger Bands
+│   │   ├── MACDIndicator.js        # Chỉ báo MACD
+│   │   ├── MAIndicator.js          # Chỉ báo Moving Average
+│   │   └── RSIIndicator.js         # Chỉ báo RSI
+│   ├── tools/
+│   │   └── TrendLinePrimitive.js   # Công cụ vẽ đường xu hướng
+│   └── pages/
+│       ├── script.js               # Logic chính của ứng dụng
+│       ├── strategy-builder.js     # Trang xây dựng chiến lược
+│       └── algo-list.js            # Logic trang danh sách algo
 └── backend/
     └── server.py           # Backend API server
 ```
@@ -172,7 +184,7 @@ Frontend sẽ chạy tại `http://localhost:8000`
 3. Thêm button kích hoạt trong UI
 
 ### Tùy Chỉnh Giao Diện
-- Chỉnh sửa `style.css` cho theme mới
+- Chỉnh sửa `css/style.css` cho theme mới
 - Thay đổi layout trong `index.html`
 - Tùy chỉnh màu sắc và font chữ
 
