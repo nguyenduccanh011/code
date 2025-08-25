@@ -4,7 +4,193 @@ from flask import Flask, jsonify, request
 from flask_cors import CORS
 from vnstock import Listing, Quote, Trading
 from datetime import datetime, timedelta
-import pandas as pd # <-- THÊM DÒNG NÀY
+import pandas as pd  # <-- THÊM DÒNG NÀY
+
+
+class BacktestingEngine:
+    """Simple backtesting engine for equity strategies."""
+
+    def __init__(
+        self,
+        prices,
+        buy_conditions,
+        sell_conditions,
+        initial_capital=1000000,
+        fee=0.0,
+    ):
+        self.prices = prices
+        self.buy_conditions = buy_conditions or []
+        self.sell_conditions = sell_conditions or []
+        self.initial_capital = initial_capital
+        self.fee = fee
+        self.cash = initial_capital
+        self.position = None
+        self.trades = []
+
+    # ------------------------------------------------------------------
+    def run(self):
+        equity_curve = []
+        for i, candle in enumerate(self.prices):
+            price = candle.get("close")
+            if price is None:
+                continue
+
+            if self.position is None and self._check_conditions(self.buy_conditions, i):
+                qty = int(self.cash // (price * (1 + self.fee)))
+                if qty > 0:
+                    cost = qty * price * (1 + self.fee)
+                    self.cash -= cost
+                    self.position = {
+                        "quantity": qty,
+                        "buy_price": price,
+                        "buy_time": candle.get("time"),
+                    }
+                # record equity after possible buy
+                equity_curve.append(
+                    self.cash
+                    + (self.position["quantity"] * price if self.position else 0)
+                )
+                continue
+
+            if self.position and self._check_conditions(self.sell_conditions, i):
+                revenue = self.position["quantity"] * price * (1 - self.fee)
+                profit = revenue - self.position["quantity"] * self.position["buy_price"]
+                self.cash += revenue
+                self.trades.append(
+                    {
+                        "buy_time": self.position["buy_time"],
+                        "buy_price": self.position["buy_price"],
+                        "sell_time": candle.get("time"),
+                        "sell_price": price,
+                        "profit": profit,
+                    }
+                )
+                self.position = None
+
+            equity = self.cash
+            if self.position:
+                equity += self.position["quantity"] * price
+            equity_curve.append(equity)
+
+        metrics = self._calculate_metrics(equity_curve)
+        return {
+            "cash": self.cash,
+            "position": self.position,
+            "trades": self.trades,
+            "metrics": metrics,
+        }
+
+    # ------------------------------------------------------------------
+    def _check_conditions(self, conditions, index):
+        if not conditions:
+            return False
+        for cond in conditions:
+            if not self._evaluate_condition(cond, index):
+                return False
+        return True
+
+    # ------------------------------------------------------------------
+    def _evaluate_condition(self, condition, index):
+        ctype = condition.get("type")
+        params = condition.get("params", {})
+        if ctype == "price":
+            operator = params.get("operator", "<")
+            value = params.get("value", 0)
+            current = self.prices[index]["close"]
+            if operator == "<":
+                return current < value
+            if operator == ">":
+                return current > value
+            return False
+
+        if ctype == "rsi":
+            operator = params.get("operator", "<")
+            value = params.get("value", 30)
+            rsi = self._calculate_rsi(index)
+            if rsi is None:
+                return False
+            if operator == "<":
+                return rsi < value
+            if operator == ">":
+                return rsi > value
+            return False
+
+        if ctype == "sma-crossover":
+            short_p = params.get("shortPeriod", 9)
+            long_p = params.get("longPeriod", 20)
+            direction = params.get("direction", "")
+            if index < long_p or index < 1:
+                return False
+            short_sma = self._calculate_sma(short_p, index)
+            long_sma = self._calculate_sma(long_p, index)
+            prev_short = self._calculate_sma(short_p, index - 1)
+            prev_long = self._calculate_sma(long_p, index - 1)
+            if direction.find("cắt lên") != -1:
+                return prev_short < prev_long and short_sma > long_sma
+            if direction.find("cắt xuống") != -1:
+                return prev_short > prev_long and short_sma < long_sma
+            return False
+
+        return False
+
+    # ------------------------------------------------------------------
+    def _calculate_sma(self, period, end_index):
+        if end_index + 1 < period:
+            return None
+        total = sum(
+            self.prices[i]["close"] for i in range(end_index - period + 1, end_index + 1)
+        )
+        return total / period
+
+    # ------------------------------------------------------------------
+    def _calculate_rsi(self, end_index, period=14):
+        if end_index < period:
+            return None
+        gains = 0.0
+        losses = 0.0
+        for i in range(end_index - period + 1, end_index + 1):
+            change = self.prices[i]["close"] - self.prices[i - 1]["close"]
+            if change > 0:
+                gains += change
+            else:
+                losses -= change
+        if losses == 0:
+            return 100
+        avg_gain = gains / period
+        avg_loss = losses / period
+        rs = avg_gain / avg_loss
+        return 100 - (100 / (1 + rs))
+
+    # ------------------------------------------------------------------
+    def _calculate_metrics(self, equity_curve):
+        final_value = equity_curve[-1] if equity_curve else self.initial_capital
+        total_return = (final_value - self.initial_capital) / self.initial_capital
+
+        wins = [t["profit"] for t in self.trades if t["profit"] > 0]
+        losses = [t["profit"] for t in self.trades if t["profit"] < 0]
+
+        winrate = len(wins) / len(self.trades) if self.trades else 0.0
+        total_profit = sum(wins)
+        total_loss = -sum(losses)  # convert to positive
+        profit_factor = total_profit / total_loss if total_loss > 0 else None
+
+        peak = equity_curve[0] if equity_curve else self.initial_capital
+        max_drawdown = 0.0
+        for value in equity_curve:
+            if value > peak:
+                peak = value
+            drawdown = (peak - value) / peak if peak else 0
+            if drawdown > max_drawdown:
+                max_drawdown = drawdown
+
+        return {
+            "total_return": total_return,
+            "winrate": winrate,
+            "max_drawdown": max_drawdown,
+            "profit_factor": profit_factor,
+            "num_trades": len(self.trades),
+        }
+
 
 app = Flask(__name__)
 CORS(app)
@@ -114,6 +300,25 @@ def get_market_data():
         print(f"Lỗi khi lấy dữ liệu thị trường cho {symbol}: {e}")
         return jsonify({"error": str(e)}), 500
 # ▲▲▲ KẾT THÚC THAY ĐỔI ▲▲▲
+
+
+@app.route('/api/backtest', methods=['POST'])
+def run_backtest():
+    data = request.get_json() or {}
+    prices = data.get('prices', [])
+    buy_conditions = data.get('buyConditions', [])
+    sell_conditions = data.get('sellConditions', [])
+    settings = data.get('settings', {})
+
+    engine = BacktestingEngine(
+        prices,
+        buy_conditions,
+        sell_conditions,
+        initial_capital=settings.get('initialCapital', 1000000),
+        fee=settings.get('fee', 0.0),
+    )
+    result = engine.run()
+    return jsonify(result)
 
 
 if __name__ == '__main__':
