@@ -2,7 +2,18 @@
 
 console.log("DataProvider.js đã được nạp.");
 
+let API_BASE_URL =
+    (typeof process !== 'undefined' && process.env && process.env.API_BASE_URL)
+        || (typeof window !== 'undefined' && window.API_BASE_URL)
+        || 'http://127.0.0.1:5000';
+
 class DataProvider {
+    constructor(apiBaseUrl) {
+        if (apiBaseUrl) {
+            API_BASE_URL = apiBaseUrl;
+        }
+    }
+
     async getHistory(symbol, timeframe, from, to) {
         console.log(`Bắt đầu yêu cầu dữ liệu THẬT cho ${symbol} - Khung ${timeframe}...`);
 
@@ -13,7 +24,7 @@ class DataProvider {
         };
         const resolution = resolutionMap[timeframe] || '1D';
 
-        let url = `http://127.0.0.1:5000/api/history?symbol=${symbol}&resolution=${resolution}`;
+        let url = `${API_BASE_URL}/api/history?symbol=${symbol}&resolution=${resolution}`;
 
         if (from && to) {
             url += `&from=${from}&to=${to}`;
@@ -51,7 +62,7 @@ class DataProvider {
 
     async getCompanyInfo(symbol) {
         console.log(`Yêu cầu thông tin công ty cho ${symbol}...`);
-        const url = `http://127.0.0.1:5000/api/company_info?symbol=${symbol}`;
+        const url = `${API_BASE_URL}/api/company_info?symbol=${symbol}`;
 
         try {
             const response = await fetch(url);
@@ -68,7 +79,7 @@ class DataProvider {
     
     async getAllCompanies() {
         console.log("Đang tải danh sách công ty cho việc tìm kiếm...");
-        const url = `http://127.0.0.1:5000/api/all_companies`;
+        const url = `${API_BASE_URL}/api/all_companies`;
         try {
             const response = await fetch(url);
             if (!response.ok) {
@@ -90,7 +101,7 @@ class DataProvider {
      * @returns {Promise<Object|null>} Dữ liệu thị trường hoặc null nếu lỗi.
      */
     async getMarketData(symbol) {
-        const url = `http://127.0.0.1:5000/api/market_data?symbol=${symbol}`;
+        const url = `${API_BASE_URL}/api/market_data?symbol=${symbol}`;
         try {
             const response = await fetch(url);
             if (!response.ok) {
