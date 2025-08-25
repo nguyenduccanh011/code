@@ -8,7 +8,9 @@ class AlgoList {
                 winrate: "55%",
                 mdd: "-8%",
                 profit: "325 điểm",
-                change: "+12%"
+                change: "+12%",
+                buyConditions: [],
+                sellConditions: []
             },
             {
                 name: "Boppo_Canh_buy_sell",
@@ -17,7 +19,9 @@ class AlgoList {
                 winrate: "63%",
                 mdd: "-5%",
                 profit: "285 điểm",
-                change: "+8%"
+                change: "+8%",
+                buyConditions: [],
+                sellConditions: []
             },
             {
                 name: "Strategy Demo",
@@ -26,7 +30,9 @@ class AlgoList {
                 winrate: "60%",
                 mdd: "-10%",
                 profit: "40%",
-                change: "+30%"
+                change: "+30%",
+                buyConditions: [],
+                sellConditions: []
             }
         ];
         this.tbody = document.getElementById('algo-table-body');
@@ -36,15 +42,7 @@ class AlgoList {
         try {
             const saved = JSON.parse(localStorage.getItem('savedStrategies') || '[]');
             saved.forEach(strategy => {
-                this.algorithms.push({
-                    name: strategy.name,
-                    code: strategy.code || 'N/A',
-                    platform: strategy.platform || 'Builder',
-                    winrate: strategy.winrate || '--',
-                    mdd: strategy.mdd || '--',
-                    profit: strategy.profit || '--',
-                    change: strategy.change || '--'
-                });
+                this.algorithms.push(strategy);
             });
         } catch (err) {
             console.error('Không thể tải chiến lược đã lưu:', err);
@@ -71,7 +69,38 @@ class AlgoList {
                 </td>
             `;
             this.tbody.appendChild(tr);
+
+            tr.querySelector('.run').addEventListener('click', () => this.runStrategy(algo.name));
+            tr.querySelector('.edit').addEventListener('click', () => this.editStrategy(algo.name));
+            tr.querySelector('.delete').addEventListener('click', () => this.deleteStrategy(algo.name));
         });
+    }
+
+    saveToLocalStorage() {
+        const userStrategies = this.algorithms.filter(a => a.platform === 'Builder');
+        localStorage.setItem('savedStrategies', JSON.stringify(userStrategies));
+    }
+
+    runStrategy(name) {
+        const strategy = this.algorithms.find(a => a.name === name);
+        if (!strategy) return;
+        strategyBuilderUI.loadStrategyConfig(strategy);
+        strategyBuilderUI.open();
+        strategyBuilderUI.testStrategy();
+    }
+
+    editStrategy(name) {
+        const strategy = this.algorithms.find(a => a.name === name);
+        if (!strategy) return;
+        strategyBuilderUI.loadStrategyConfig(strategy);
+        strategyBuilderUI.open();
+    }
+
+    deleteStrategy(name) {
+        if (!confirm(`Xóa chiến lược "${name}"?`)) return;
+        this.algorithms = this.algorithms.filter(a => a.name !== name);
+        this.saveToLocalStorage();
+        this.render();
     }
 
     init() {
@@ -86,7 +115,15 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const authorizeBtn = document.getElementById('authorize-algo-btn');
     if (authorizeBtn) {
-        authorizeBtn.addEventListener('click', () => strategyBuilderUI.open());
+        authorizeBtn.addEventListener('click', () => {
+            strategyBuilderUI.loadStrategyConfig({
+                name: '',
+                buyConditions: [{ type: 'sma-crossover', params: { shortPeriod: 9, longPeriod: 20, direction: 'cắt lên' } }],
+                sellConditions: [{ type: 'sma-crossover', params: { shortPeriod: 9, longPeriod: 20, direction: 'cắt xuống' } }]
+            });
+            strategyBuilderUI.editingStrategy = null;
+            strategyBuilderUI.open();
+        });
     }
 
     document.addEventListener('strategy-saved', (e) => {
@@ -99,7 +136,9 @@ document.addEventListener('DOMContentLoaded', () => {
             winrate: s.winrate || '--',
             mdd: s.mdd || '--',
             profit: s.profit || '--',
-            change: s.change || '--'
+            change: s.change || '--',
+            buyConditions: s.buyConditions || [],
+            sellConditions: s.sellConditions || []
         };
         if (existingIdx >= 0) {
             algoList.algorithms[existingIdx] = entry;

@@ -3,6 +3,7 @@ class StrategyBuilderUI {
         this.panel = document.getElementById('strategy-builder-panel');
         this.openBtn = document.getElementById('strategy-builder-btn');
         this.closeBtn = document.getElementById('close-strategy-builder');
+        this.editingStrategy = null;
 
         this.registerEvents();
 
@@ -143,79 +144,105 @@ class StrategyBuilderUI {
         conditions.forEach(cond => this.addCondition(containerId, cond.type, cond.params));
     }
 
-    testStrategy() {
-        console.log('Testing strategy...');
-
-        if (!currentCandlestickData || currentCandlestickData.length === 0) {
-            alert('Không có dữ liệu để test chiến lược. Vui lòng tải dữ liệu trước.');
-            return;
+        loadStrategyConfig(strategy) {
+            document.getElementById('strategy-name').value = strategy.name || '';
+            document.getElementById('strategy-code').value = strategy.code || '';
+            this.rebuildConditions('buy-conditions', strategy.buyConditions || []);
+            this.rebuildConditions('sell-conditions', strategy.sellConditions || []);
+            this.editingStrategy = strategy;
         }
 
-        try {
-            const markers = strategyEngine.runStrategy(currentCandlestickData);
+        async testStrategy() {
+            console.log('Testing strategy...');
 
-            if (markers.length > 0) {
-                strategyEngine.displayMarkers(markers);
-                alert(`Chiến lược đã chạy thành công! Tìm thấy ${markers.length} tín hiệu.`);
+            const symbolInput = document.getElementById('strategy-code').value.trim().toUpperCase();
+            const fallbackSymbol = typeof currentSymbol !== 'undefined' ? currentSymbol : 'VNINDEX';
+            const symbol = symbolInput || this.editingStrategy?.code || fallbackSymbol;
 
-                const firstMarkerTime = markers[0].time;
-                const dataWithTime = currentCandlestickData.map((d, index) => ({...d, originalIndex: index}));
-                const dataPoint = dataWithTime.find(d => areTimesEqual(d.time, firstMarkerTime));
-
-                if (dataPoint) {
-                    mainChart.timeScale().scrollToPosition(dataPoint.originalIndex, true);
+            try {
+                if (typeof initialLoad === 'function' && strategyEngine.mainChart && strategyEngine.mainSeries) {
+                    const timeframe = document.querySelector('.timeframe-button.active')?.textContent || 'D';
+                    if (typeof currentSymbol !== 'undefined') currentSymbol = symbol;
+                    await initialLoad(symbol, timeframe);
+                } else {
+                    currentCandlestickData = await dataProvider.getHistory(symbol, 'D');
                 }
-            } else {
-                alert('Chiến lược đã chạy nhưng không tìm thấy tín hiệu nào trong khoảng thời gian hiện tại.');
+            } catch (err) {
+                console.error('Không thể tải dữ liệu để test:', err);
             }
-        } catch (error) {
-            console.error('Lỗi khi chạy chiến lược:', error);
-            alert('Có lỗi xảy ra khi chạy chiến lược: ' + error.message);
-        }
-    }
 
-    saveStrategy() {
-        const config = strategyEngine.readStrategyConfig();
-        const code = prompt('Nhập mã chiến lược (ví dụ: VN30F1M):', '');
-        const strategy = {
-            ...config,
-            code: code || 'N/A',
-            platform: 'Builder',
-            winrate: '--',
-            mdd: '--',
-            profit: '--',
-            change: '--'
-        };
-        const saved = JSON.parse(localStorage.getItem('savedStrategies') || '[]');
-        const idx = saved.findIndex(s => s.name === strategy.name);
-        if (idx >= 0) {
-            saved[idx] = strategy;
-        } else {
-            saved.push(strategy);
-        }
-        localStorage.setItem('savedStrategies', JSON.stringify(saved));
-        alert(`Đã lưu chiến lược "${strategy.name}"`);
-        document.dispatchEvent(new CustomEvent('strategy-saved', { detail: strategy }));
-        this.close();
-    }
+          if (!currentCandlestickData || currentCandlestickData.length === 0) {
+              alert('Không có dữ liệu để test chiến lược. Vui lòng tải dữ liệu trước.');
+              return;
+          }
 
-    loadStrategy() {
-        const saved = JSON.parse(localStorage.getItem('savedStrategies') || '[]');
-        if (!saved.length) {
-            alert('Không có chiến lược đã lưu');
-            return;
-        }
-        const name = prompt('Nhập tên chiến lược muốn tải:\n' + saved.map(s => s.name).join('\n'));
-        const strategy = saved.find(s => s.name === name);
-        if (!strategy) {
-            alert('Không tìm thấy chiến lược');
-            return;
-        }
-        document.getElementById('strategy-name').value = strategy.name;
-        this.rebuildConditions('buy-conditions', strategy.buyConditions);
-        this.rebuildConditions('sell-conditions', strategy.sellConditions);
-        alert(`Đã tải chiến lược "${name}"`);
-    }
-}
+          try {
+              const markers = strategyEngine.runStrategy(currentCandlestickData);
+
+              if (markers.length > 0) {
+                  if (strategyEngine.mainChart && strategyEngine.mainSeries) {
+                      strategyEngine.displayMarkers(markers);
+                      const firstMarkerTime = markers[0].time;
+                      const dataWithTime = currentCandlestickData.map((d, index) => ({...d, originalIndex: index}));
+                      const dataPoint = dataWithTime.find(d => areTimesEqual(d.time, firstMarkerTime));
+                      if (dataPoint) {
+                          mainChart.timeScale().scrollToPosition(dataPoint.originalIndex, true);
+                      }
+                  }
+                  alert(`Chiến lược đã chạy thành công! Tìm thấy ${markers.length} tín hiệu.`);
+              } else {
+                  alert('Chiến lược đã chạy nhưng không tìm thấy tín hiệu nào trong khoảng thời gian hiện tại.');
+              }
+          } catch (error) {
+              console.error('Lỗi khi chạy chiến lược:', error);
+              alert('Có lỗi xảy ra khi chạy chiến lược: ' + error.message);
+          }
+      }
+
+      saveStrategy() {
+          const config = strategyEngine.readStrategyConfig();
+          const code = document.getElementById('strategy-code').value.trim().toUpperCase();
+          const strategy = {
+              ...config,
+              code: code || 'N/A',
+              platform: this.editingStrategy?.platform || 'Builder',
+              winrate: this.editingStrategy?.winrate || '--',
+              mdd: this.editingStrategy?.mdd || '--',
+              profit: this.editingStrategy?.profit || '--',
+              change: this.editingStrategy?.change || '--'
+          };
+          const saved = JSON.parse(localStorage.getItem('savedStrategies') || '[]');
+          const idx = saved.findIndex(s => s.name === strategy.name);
+          if (idx >= 0) {
+              saved[idx] = strategy;
+          } else {
+              saved.push(strategy);
+          }
+          localStorage.setItem('savedStrategies', JSON.stringify(saved));
+          alert(`Đã lưu chiến lược "${strategy.name}"`);
+          document.dispatchEvent(new CustomEvent('strategy-saved', { detail: strategy }));
+          this.editingStrategy = null;
+          this.close();
+      }
+
+      loadStrategy() {
+          const saved = JSON.parse(localStorage.getItem('savedStrategies') || '[]');
+          if (!saved.length) {
+              alert('Không có chiến lược đã lưu');
+              return;
+          }
+          const name = prompt('Nhập tên chiến lược muốn tải:\n' + saved.map(s => s.name).join('\n'));
+          const strategy = saved.find(s => s.name === name);
+          if (!strategy) {
+              alert('Không tìm thấy chiến lược');
+              return;
+          }
+          document.getElementById('strategy-name').value = strategy.name;
+          document.getElementById('strategy-code').value = strategy.code || '';
+          this.rebuildConditions('buy-conditions', strategy.buyConditions);
+          this.rebuildConditions('sell-conditions', strategy.sellConditions);
+          alert(`Đã tải chiến lược "${name}"`);
+      }
+  }
 
 window.strategyBuilderUI = new StrategyBuilderUI();

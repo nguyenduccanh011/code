@@ -46,6 +46,11 @@
                 <input type="text" id="strategy-name" placeholder="Nhập tên chiến lược..." value="SMA Crossover Strategy">
             </div>
 
+            <div class="strategy-code-section">
+                <label for="strategy-code">Mã chứng khoán:</label>
+                <input type="text" id="strategy-code" placeholder="VD: FPT">
+            </div>
+
             <div class="conditions-section">
                 <h4>Điều kiện mua (BUY):</h4>
                 <div id="buy-conditions" class="conditions-container">
@@ -95,7 +100,10 @@
     </div>
 
     <script src="src/core/StrategyEngine.js"></script>
-    <script>var currentCandlestickData = [];
+    <script src="src/core/DataProvider.js"></script>
+    <script>
+    var dataProvider = new DataProvider();
+    var currentCandlestickData = [];
     var strategyEngine = new StrategyEngine(null, null);
     </script>
     <script src="src/pages/strategy-builder.js"></script>
