@@ -177,25 +177,48 @@ class StrategyBuilderUI {
           }
 
           try {
+              // Hiển thị marker tín hiệu ở client như cũ
               const markers = strategyEngine.runStrategy(currentCandlestickData);
-
-              if (markers.length > 0) {
-                  if (strategyEngine.mainChart && strategyEngine.mainSeries) {
-                      strategyEngine.displayMarkers(markers);
-                      const firstMarkerTime = markers[0].time;
-                      const dataWithTime = currentCandlestickData.map((d, index) => ({...d, originalIndex: index}));
-                      const dataPoint = dataWithTime.find(d => areTimesEqual(d.time, firstMarkerTime));
-                      if (dataPoint) {
-                          mainChart.timeScale().scrollToPosition(dataPoint.originalIndex, true);
-                      }
+              if (markers.length > 0 && strategyEngine.mainChart && strategyEngine.mainSeries) {
+                  strategyEngine.displayMarkers(markers);
+                  const firstMarkerTime = markers[0].time;
+                  const dataWithTime = currentCandlestickData.map((d, index) => ({ ...d, originalIndex: index }));
+                  const dataPoint = dataWithTime.find(d => areTimesEqual(d.time, firstMarkerTime));
+                  if (dataPoint) {
+                      mainChart.timeScale().scrollToPosition(dataPoint.originalIndex, true);
                   }
-                  alert(`Chiến lược đã chạy thành công! Tìm thấy ${markers.length} tín hiệu.`);
+              }
+
+              // Gọi backend để backtest và lấy metrics
+              const config = strategyEngine.readStrategyConfig();
+              const backtestPayload = {
+                  prices: currentCandlestickData,
+                  buyConditions: config.buyConditions,
+                  sellConditions: config.sellConditions,
+                  settings: { initialCapital: 100000000, fee: 0.0015 }
+              };
+              const result = await dataProvider.runBacktest(backtestPayload);
+              if (result && result.metrics) {
+                  const m = result.metrics;
+                  const win = (m.winrate * 100).toFixed(2) + '%';
+                  const mdd = '-' + (m.max_drawdown * 100).toFixed(2) + '%';
+                  const profit = (m.total_return * 100).toFixed(2) + '%';
+                  alert(`Backtest hoàn tất!\nWinrate: ${win}\nMDD: ${mdd}\nLợi nhuận: ${profit}`);
+                  this.editingStrategy = {
+                      ...config,
+                      code: symbol,
+                      platform: this.editingStrategy?.platform || 'Builder',
+                      winrate: win,
+                      mdd: mdd,
+                      profit: profit,
+                      change: profit
+                  };
               } else {
-                  alert('Chiến lược đã chạy nhưng không tìm thấy tín hiệu nào trong khoảng thời gian hiện tại.');
+                  alert('Backtest không trả về kết quả hợp lệ.');
               }
           } catch (error) {
-              console.error('Lỗi khi chạy chiến lược:', error);
-              alert('Có lỗi xảy ra khi chạy chiến lược: ' + error.message);
+              console.error('Lỗi khi backtest:', error);
+              alert('Có lỗi xảy ra khi backtest: ' + error.message);
           }
       }
 
