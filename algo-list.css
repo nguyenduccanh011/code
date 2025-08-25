@@ -1,0 +1,52 @@
+.algo-page {
+    padding: 20px;
+}
+
+.algo-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 10px;
+}
+
+.algo-table {
+    width: 100%;
+    border-collapse: collapse;
+    background: #fff;
+}
+
+.algo-table th,
+.algo-table td {
+    border: 1px solid #dee2e6;
+    padding: 8px;
+    text-align: center;
+}
+
+.algo-table th {
+    background-color: #f8f9fa;
+}
+
+.action-icon-btn {
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 4px;
+    margin: 0 2px;
+    font-size: 14px;
+}
+
+.action-icon-btn.run {
+    color: #28a745;
+}
+
+.action-icon-btn.edit {
+    color: #007bff;
+}
+
+.action-icon-btn.delete {
+    color: #dc3545;
+}
+
+.action-icon-btn:hover {
+    opacity: 0.8;
+}

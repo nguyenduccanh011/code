@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Danh sách Algo</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="algo-list.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" integrity="sha512-p+1RqYTxNOLXgq0fsE4zMDQLWcVFOPJz1D8SSsPyozJzDPbpe2T19ZLxNblLJjRwvxw9Y+QSIOcoPqW9J5XhMg==" crossorigin="anonymous" referrerpolicy="no-referrer" />
+</head>
+<body>
+    <div class="algo-page">
+        <div class="algo-header">
+            <h2>Danh sách algo</h2>
+            <button id="authorize-algo-btn" class="action-btn primary">
+                <i class="fa fa-plus"></i> Authorize Algo
+            </button>
+        </div>
+        <table class="algo-table">
+            <thead>
+                <tr>
+                    <th>STT</th>
+                    <th>Tên</th>
+                    <th>Mã</th>
+                    <th>Nền tảng</th>
+                    <th>Winrate</th>
+                    <th>MDD</th>
+                    <th>Lợi nhuận</th>
+                    <th>Tăng/giảm</th>
+                    <th>Thao tác</th>
+                </tr>
+            </thead>
+            <tbody id="algo-table-body"></tbody>
+        </table>
+    </div>
+    <script src="algo-list.js"></script>
+</body>
+</html>
