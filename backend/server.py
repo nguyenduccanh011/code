@@ -29,6 +29,7 @@ class BacktestingEngine:
 
     # ------------------------------------------------------------------
     def run(self):
+        equity_curve = []
         for i, candle in enumerate(self.prices):
             price = candle.get("close")
             if price is None:
@@ -44,6 +45,11 @@ class BacktestingEngine:
                         "buy_price": price,
                         "buy_time": candle.get("time"),
                     }
+                # record equity after possible buy
+                equity_curve.append(
+                    self.cash
+                    + (self.position["quantity"] * price if self.position else 0)
+                )
                 continue
 
             if self.position and self._check_conditions(self.sell_conditions, i):
@@ -61,7 +67,18 @@ class BacktestingEngine:
                 )
                 self.position = None
 
-        return {"cash": self.cash, "position": self.position, "trades": self.trades}
+            equity = self.cash
+            if self.position:
+                equity += self.position["quantity"] * price
+            equity_curve.append(equity)
+
+        metrics = self._calculate_metrics(equity_curve)
+        return {
+            "cash": self.cash,
+            "position": self.position,
+            "trades": self.trades,
+            "metrics": metrics,
+        }
 
     # ------------------------------------------------------------------
     def _check_conditions(self, conditions, index):
@@ -143,6 +160,36 @@ class BacktestingEngine:
         avg_loss = losses / period
         rs = avg_gain / avg_loss
         return 100 - (100 / (1 + rs))
+
+    # ------------------------------------------------------------------
+    def _calculate_metrics(self, equity_curve):
+        final_value = equity_curve[-1] if equity_curve else self.initial_capital
+        total_return = (final_value - self.initial_capital) / self.initial_capital
+
+        wins = [t["profit"] for t in self.trades if t["profit"] > 0]
+        losses = [t["profit"] for t in self.trades if t["profit"] < 0]
+
+        winrate = len(wins) / len(self.trades) if self.trades else 0.0
+        total_profit = sum(wins)
+        total_loss = -sum(losses)  # convert to positive
+        profit_factor = total_profit / total_loss if total_loss > 0 else None
+
+        peak = equity_curve[0] if equity_curve else self.initial_capital
+        max_drawdown = 0.0
+        for value in equity_curve:
+            if value > peak:
+                peak = value
+            drawdown = (peak - value) / peak if peak else 0
+            if drawdown > max_drawdown:
+                max_drawdown = drawdown
+
+        return {
+            "total_return": total_return,
+            "winrate": winrate,
+            "max_drawdown": max_drawdown,
+            "profit_factor": profit_factor,
+            "num_trades": len(self.trades),
+        }
 
 
 app = Flask(__name__)
