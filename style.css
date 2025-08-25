@@ -12,9 +12,16 @@ body {
     gap: 5px;
 }
 
+/* Start consolidated layout sections */
 .header {
     grid-column: 1 / 4;
     background-color: white;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 15px;
+    font-size: 0.8em;
+    color: #333;
 }
 
 .left-toolbar {
@@ -28,7 +35,7 @@ body {
     grid-row: 2 / 3;
     background-color: white;
     /* Remove default padding from main element */
-    padding: 0; 
+    padding: 0;
 }
 
 .right-sidebar {
@@ -37,63 +44,6 @@ body {
     background-color: white;
 }
 
-.header, .left-toolbar, .right-sidebar {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 0.8em;
-    color: #aaa;
-}
-
-/* Thêm các dòng này vào cuối tệp style.css */
-
-.header {
-    display: flex; /* Sắp xếp các mục theo hàng ngang */
-    align-items: center; /* Căn giữa theo chiều dọc */
-    padding: 0 15px;
-    justify-content: space-between; /* Đẩy các mục về hai phía */
-    color: #333; /* Reset lại màu chữ */
-}
-
-.symbol-info strong {
-    font-size: 1.2em;
-}
-
-.symbol-info span {
-    font-size: 0.8em;
-    color: #888;
-    margin-left: 10px;
-}
-
-.timeframe-button {
-    padding: 5px 10px;
-    margin-left: 5px;
-    border: 1px solid transparent;
-    background-color: transparent;
-    cursor: pointer;
-    font-size: 0.9em;
-}
-
-.timeframe-button:hover {
-    background-color: #f0f3f5;
-}
-
-.timeframe-button.active {
-    background-color: #e0eefd;
-    color: #2962ff;
-    border-radius: 4px;
-}
-
-/* Add these new rules to the end of style.css */
-
-.header {
-    display: flex; /* Arrange items in a row */
-    align-items: center; /* Center them vertically */
-    padding: 0 15px;
-    justify-content: space-between; /* Push items to opposite ends */
-    color: #333; /* Reset the text color */
-}
-
 .symbol-info strong {
     font-size: 1.2em;
 }
@@ -118,57 +68,11 @@ body {
     background-color: #f0f3f5;
 }
 
-/* Style for the currently selected button */
 .timeframe-button.active {
     background-color: #e0eefd;
     color: #2962ff;
 }
-
-/* Thêm các dòng này vào cuối tệp style.css */
-
-.header {
-    display: flex; /* Sắp xếp các mục theo hàng ngang */
-    align-items: center; /* Căn giữa theo chiều dọc */
-    padding: 0 15px;
-    justify-content: space-between; /* Đẩy các mục về hai phía */
-    color: #333; /* Reset lại màu chữ */
-}
-
-.symbol-info strong {
-    font-size: 1.2em;
-}
-
-.symbol-info span {
-    font-size: 0.8em;
-    color: #888;
-    margin-left: 10px;
-}
-
-.timeframe-button {
-    padding: 5px 10px;
-    margin-left: 5px;
-    border: 1px solid transparent;
-    background-color: transparent;
-    cursor: pointer;
-    font-size: 0.9em;
-}
-
-.timeframe-button:hover {
-    background-color: #f0f3f5;
-}
-
-.timeframe-button.active {
-    background-color: #e0eefd;
-    color: #2962ff;
-    border-radius: 4px;
-}
-
-/* style.css */
-
-/* Thêm vào khu vực .header */
-.header {
-    justify-content: space-between; /* Đảm bảo các mục con nằm ở hai đầu */
-}
+/* End consolidated layout sections */
 
 .left-header {
     display: flex;
@@ -215,7 +119,6 @@ body {
     background-color: #f0f3f5;
 }
 
-/* style.css */
 .main-chart {
     /* ▼ THAY ĐỔI VÀ THÊM CÁC DÒNG NÀY ▼ */
     display: flex;
