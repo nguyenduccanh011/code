@@ -3,6 +3,7 @@ class StrategyBuilderUI {
         this.panel = document.getElementById('strategy-builder-panel');
         this.openBtn = document.getElementById('strategy-builder-btn');
         this.closeBtn = document.getElementById('close-strategy-builder');
+        this.editingStrategy = null;
 
         this.registerEvents();
 
@@ -143,6 +144,13 @@ class StrategyBuilderUI {
         conditions.forEach(cond => this.addCondition(containerId, cond.type, cond.params));
     }
 
+    loadStrategyConfig(strategy) {
+        document.getElementById('strategy-name').value = strategy.name || '';
+        this.rebuildConditions('buy-conditions', strategy.buyConditions || []);
+        this.rebuildConditions('sell-conditions', strategy.sellConditions || []);
+        this.editingStrategy = strategy;
+    }
+
     testStrategy() {
         console.log('Testing strategy...');
 
@@ -176,15 +184,16 @@ class StrategyBuilderUI {
 
     saveStrategy() {
         const config = strategyEngine.readStrategyConfig();
-        const code = prompt('Nhập mã chiến lược (ví dụ: VN30F1M):', '');
+        const defaultCode = this.editingStrategy?.code || '';
+        const code = prompt('Nhập mã chiến lược (ví dụ: VN30F1M):', defaultCode);
         const strategy = {
             ...config,
             code: code || 'N/A',
-            platform: 'Builder',
-            winrate: '--',
-            mdd: '--',
-            profit: '--',
-            change: '--'
+            platform: this.editingStrategy?.platform || 'Builder',
+            winrate: this.editingStrategy?.winrate || '--',
+            mdd: this.editingStrategy?.mdd || '--',
+            profit: this.editingStrategy?.profit || '--',
+            change: this.editingStrategy?.change || '--'
         };
         const saved = JSON.parse(localStorage.getItem('savedStrategies') || '[]');
         const idx = saved.findIndex(s => s.name === strategy.name);
@@ -196,6 +205,7 @@ class StrategyBuilderUI {
         localStorage.setItem('savedStrategies', JSON.stringify(saved));
         alert(`Đã lưu chiến lược "${strategy.name}"`);
         document.dispatchEvent(new CustomEvent('strategy-saved', { detail: strategy }));
+        this.editingStrategy = null;
         this.close();
     }
 
