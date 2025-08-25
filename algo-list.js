@@ -1,4 +1,4 @@
-const algorithms = [
+let algorithms = [
     {
         name: "Boppo_Canh",
         code: "VN30F1M",
@@ -28,8 +28,28 @@ const algorithms = [
     }
 ];
 
+function loadSavedStrategies() {
+    try {
+        const saved = JSON.parse(localStorage.getItem('savedStrategies') || '[]');
+        saved.forEach(strategy => {
+            algorithms.push({
+                name: strategy.name,
+                code: strategy.code || 'N/A',
+                platform: strategy.platform || 'Builder',
+                winrate: strategy.winrate || '--',
+                mdd: strategy.mdd || '--',
+                profit: strategy.profit || '--',
+                change: strategy.change || '--'
+            });
+        });
+    } catch (err) {
+        console.error('Không thể tải chiến lược đã lưu:', err);
+    }
+}
+
 function renderAlgoTable() {
     const tbody = document.getElementById('algo-table-body');
+    tbody.innerHTML = '';
     algorithms.forEach((algo, idx) => {
         const tr = document.createElement('tr');
         tr.innerHTML = `
@@ -51,4 +71,7 @@ function renderAlgoTable() {
     });
 }
 
-document.addEventListener('DOMContentLoaded', renderAlgoTable);
+document.addEventListener('DOMContentLoaded', () => {
+    loadSavedStrategies();
+    renderAlgoTable();
+});

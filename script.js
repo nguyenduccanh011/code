@@ -291,44 +291,57 @@ window.addEventListener('click', (event) => {
     }
 });
 
+document.addEventListener('DOMContentLoaded', () => {
+    if (window.location.hash === '#builder') {
+        strategyBuilderPanel.style.display = 'block';
+    }
+});
+
 // Logic thêm/xóa điều kiện
-function addCondition(containerId, conditionType = 'sma-crossover') {
+function addCondition(containerId, conditionType = 'sma-crossover', params = null) {
     const container = document.getElementById(containerId);
     const conditionItem = document.createElement('div');
     conditionItem.className = 'condition-item';
-    
+
     let paramsHtml = '';
     if (conditionType === 'sma-crossover') {
+        const shortVal = params?.shortPeriod ?? '';
+        const longVal = params?.longPeriod ?? '';
+        const direction = params?.direction === 'cắt xuống' ? 'cắt xuống' : 'cắt lên';
         paramsHtml = `
-            <input type="number" class="param-input" placeholder="9" min="1" max="100">
-            <span>cắt lên</span>
-            <input type="number" class="param-input" placeholder="20" min="1" max="100">
+            <input type="number" class="param-input" placeholder="9" min="1" max="100" value="${shortVal}">
+            <span>${direction}</span>
+            <input type="number" class="param-input" placeholder="20" min="1" max="100" value="${longVal}">
         `;
     } else if (conditionType === 'rsi') {
+        const op = params?.operator ?? '<';
+        const val = params?.value ?? '';
         paramsHtml = `
             <span>RSI</span>
             <select class="param-input">
-                <option value="<"><</option>
-                <option value=">">></option>
+                <option value="<" ${op === '<' ? 'selected' : ''}><</option>
+                <option value=">" ${op === '>' ? 'selected' : ''}>></option>
             </select>
-            <input type="number" class="param-input" placeholder="30" min="0" max="100">
+            <input type="number" class="param-input" placeholder="30" min="0" max="100" value="${val}">
         `;
     } else if (conditionType === 'price') {
+        const op = params?.operator ?? '<';
+        const val = params?.value ?? '';
         paramsHtml = `
             <span>Giá</span>
             <select class="param-input">
-                <option value="<"><</option>
-                <option value=">">></option>
+                <option value="<" ${op === '<' ? 'selected' : ''}><</option>
+                <option value=">" ${op === '>' ? 'selected' : ''}>></option>
             </select>
-            <input type="number" class="param-input" placeholder="1000" min="0" step="0.01">
+            <input type="number" class="param-input" placeholder="1000" min="0" step="0.01" value="${val}">
         `;
     }
-    
+
     conditionItem.innerHTML = `
         <select class="condition-type">
-            <option value="sma-crossover">SMA Crossover</option>
-            <option value="rsi">RSI</option>
-            <option value="price">Giá</option>
+            <option value="sma-crossover" ${conditionType === 'sma-crossover' ? 'selected' : ''}>SMA Crossover</option>
+            <option value="rsi" ${conditionType === 'rsi' ? 'selected' : ''}>RSI</option>
+            <option value="price" ${conditionType === 'price' ? 'selected' : ''}>Giá</option>
         </select>
         <div class="condition-params">
             ${paramsHtml}
@@ -381,6 +394,12 @@ function addCondition(containerId, conditionType = 'sma-crossover') {
     container.appendChild(conditionItem);
 }
 
+function rebuildConditions(containerId, conditions) {
+    const container = document.getElementById(containerId);
+    container.innerHTML = '';
+    conditions.forEach(cond => addCondition(containerId, cond.type, cond.params));
+}
+
 // Thêm điều kiện mua
 document.getElementById('add-buy-condition').addEventListener('click', () => {
     addCondition('buy-conditions');
@@ -428,16 +447,46 @@ document.getElementById('test-strategy-btn').addEventListener('click', () => {
 
 // Xử lý nút Save Strategy
 document.getElementById('save-strategy-btn').addEventListener('click', () => {
-    console.log('Saving strategy...');
-    // TODO: Implement strategy saving logic
-    alert('Tính năng Save Strategy sẽ được implement trong bước tiếp theo!');
+    const config = strategyEngine.readStrategyConfig();
+    const code = prompt('Nhập mã chiến lược (ví dụ: VN30F1M):', '');
+    const platform = prompt('Nhập nền tảng (ví dụ: MB):', '');
+    const strategy = {
+        ...config,
+        code: code || 'N/A',
+        platform: platform || 'Builder',
+        winrate: '--',
+        mdd: '--',
+        profit: '--',
+        change: '--'
+    };
+    const saved = JSON.parse(localStorage.getItem('savedStrategies') || '[]');
+    const idx = saved.findIndex(s => s.name === strategy.name);
+    if (idx >= 0) {
+        saved[idx] = strategy;
+    } else {
+        saved.push(strategy);
+    }
+    localStorage.setItem('savedStrategies', JSON.stringify(saved));
+    alert(`Đã lưu chiến lược "${strategy.name}"`);
 });
 
 // Xử lý nút Load Strategy
 document.getElementById('load-strategy-btn').addEventListener('click', () => {
-    console.log('Loading strategy...');
-    // TODO: Implement strategy loading logic
-    alert('Tính năng Load Strategy sẽ được implement trong bước tiếp theo!');
+    const saved = JSON.parse(localStorage.getItem('savedStrategies') || '[]');
+    if (!saved.length) {
+        alert('Không có chiến lược đã lưu');
+        return;
+    }
+    const name = prompt('Nhập tên chiến lược muốn tải:\n' + saved.map(s => s.name).join('\n'));
+    const strategy = saved.find(s => s.name === name);
+    if (!strategy) {
+        alert('Không tìm thấy chiến lược');
+        return;
+    }
+    document.getElementById('strategy-name').value = strategy.name;
+    rebuildConditions('buy-conditions', strategy.buyConditions);
+    rebuildConditions('sell-conditions', strategy.sellConditions);
+    alert(`Đã tải chiến lược "${name}"`);
 });
 strategyBtn.addEventListener('click', () => {
     isStrategyActive = !isStrategyActive;
