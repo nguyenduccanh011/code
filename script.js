@@ -31,6 +31,9 @@ function calculateSMA(data, period) {
 const syncManager = new ChartSyncManager();
 const activeIndicators = {};
 const dataProvider = new DataProvider();
+const maSettingsPanel = document.getElementById('ma-settings-panel');
+let maCounter = 0;
+const defaultMaColors = ['#2962FF', '#FF6D00', '#D81B60', '#43A047', '#6D4C41'];
 
 
 // --- Biến quản lý dữ liệu và trạng thái tải ---
@@ -475,6 +478,65 @@ window.addEventListener('click', (event) => {
     }
 });
 
+function createMAConfigItem(id, indicator) {
+    const item = document.createElement('div');
+    item.className = 'ma-config';
+    item.dataset.id = id;
+
+    const colorBox = document.createElement('div');
+    colorBox.className = 'ma-color-box';
+    colorBox.style.background = indicator.options.color;
+
+    const label = document.createElement('span');
+    label.textContent = `MA ${indicator.options.period}`;
+
+    const editBtn = document.createElement('button');
+    editBtn.textContent = '⚙';
+
+    const removeBtn = document.createElement('button');
+    removeBtn.textContent = '×';
+
+    const dialog = document.createElement('div');
+    dialog.className = 'ma-config-dialog';
+    dialog.innerHTML = `
+        <label>Chu kỳ: <input type="number" min="1" value="${indicator.options.period}"></label>
+        <label>Màu: <input type="color" value="${indicator.options.color}"></label>
+        <div class="ma-dialog-actions">
+            <button class="ma-dialog-ok">OK</button>
+            <button class="ma-dialog-cancel">Hủy</button>
+        </div>
+    `;
+
+    editBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        dialog.style.display = dialog.style.display === 'flex' ? 'none' : 'flex';
+    });
+
+    dialog.querySelector('.ma-dialog-ok').addEventListener('click', () => {
+        const periodInput = dialog.querySelector('input[type="number"]');
+        const colorInput = dialog.querySelector('input[type="color"]');
+        const newPeriod = parseInt(periodInput.value, 10);
+        const newColor = colorInput.value;
+        indicator.setOptions({ period: newPeriod, color: newColor }, currentCandlestickData);
+        label.textContent = `MA ${indicator.options.period}`;
+        colorBox.style.background = indicator.options.color;
+        dialog.style.display = 'none';
+    });
+
+    dialog.querySelector('.ma-dialog-cancel').addEventListener('click', () => {
+        dialog.style.display = 'none';
+    });
+
+    removeBtn.addEventListener('click', () => {
+        indicator.remove();
+        delete activeIndicators[id];
+        item.remove();
+    });
+
+    item.append(colorBox, label, editBtn, removeBtn, dialog);
+    maSettingsPanel.appendChild(item);
+}
+
 indicatorDropdown.addEventListener('click', async (event) => {
     event.preventDefault();
     const target = event.target;
@@ -482,21 +544,35 @@ indicatorDropdown.addEventListener('click', async (event) => {
     const indicatorId = target.getAttribute('data-indicator');
     if (!indicatorId) return;
 
-    if (activeIndicators[indicatorId]) {
-        activeIndicators[indicatorId].remove();
-        delete activeIndicators[indicatorId];
+    if (indicatorId === 'ma') {
+        maCounter++;
+        const color = defaultMaColors[(maCounter - 1) % defaultMaColors.length];
+        const newIndicator = indicatorFactory['ma'].create(mainChart, currentCandlestickData, { period: 9, color });
+        const id = `ma-${maCounter}`;
+        activeIndicators[id] = newIndicator;
+        newIndicator.addToChart(currentCandlestickData);
+        createMAConfigItem(id, newIndicator);
     } else {
-        const indicatorCreator = indicatorFactory[indicatorId];
-        if (indicatorCreator) {
-            const newIndicator = indicatorCreator.create(mainChart, currentCandlestickData);
-            activeIndicators[indicatorId] = newIndicator;
-            newIndicator.addToChart(currentCandlestickData);
+        if (activeIndicators[indicatorId]) {
+            activeIndicators[indicatorId].remove();
+            delete activeIndicators[indicatorId];
+        } else {
+            const indicatorCreator = indicatorFactory[indicatorId];
+            if (indicatorCreator) {
+                const newIndicator = indicatorCreator.create(mainChart, currentCandlestickData);
+                activeIndicators[indicatorId] = newIndicator;
+                newIndicator.addToChart(currentCandlestickData);
+            }
         }
     }
     indicatorDropdown.classList.remove('show');
 });
 
 const indicatorFactory = {
+    'ma': {
+        name: 'Moving Average',
+        create: (mainChart, data, options = { period: 9, color: '#2962FF' }) => new MAIndicator(mainChart, options)
+    },
     'rsi': { name: 'RSI (14)', create: (mainChart, data) => new RSIIndicator(rsiChartContainer, mainChart, mainSeries) },
     'macd': { name: 'MACD (12, 26, 9)', create: (mainChart, data) => new MACDIndicator(null, mainChart, mainSeries) },
     'bb': { name: 'Bollinger Bands (20, 2)', create: (mainChart, data) => new BollingerBandsIndicator(mainChart) }

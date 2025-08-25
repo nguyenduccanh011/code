@@ -127,6 +127,7 @@ body {
 }
 
 #main-chart-container {
+    position: relative;
     flex-grow: 1; /* Cho phép biểu đồ chính chiếm hết không gian còn lại */
     height: 0; /* Cần thiết để flex-grow hoạt động đúng */
 }
@@ -589,4 +590,76 @@ body {
 .action-btn.primary:hover {
     background: #0056b3;
     border-color: #0056b3;
+}
+
+/* ===== MA SETTINGS PANEL ===== */
+#ma-settings-panel {
+    position: absolute;
+    top: 10px;
+    left: 10px;
+    z-index: 50;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    font-size: 12px;
+}
+
+.ma-config {
+    position: relative;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    padding: 2px 4px;
+    background: rgba(255, 255, 255, 0.9);
+    border: 1px solid #ddd;
+    border-radius: 4px;
+}
+
+.ma-color-box {
+    width: 12px;
+    height: 12px;
+    border: 1px solid #999;
+}
+
+.ma-config button {
+    border: none;
+    background: transparent;
+    cursor: pointer;
+    font-size: 10px;
+    padding: 0 2px;
+}
+
+.ma-config-dialog {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    background: #fff;
+    border: 1px solid #ddd;
+    padding: 5px;
+    display: none;
+    flex-direction: column;
+    gap: 4px;
+    z-index: 100;
+}
+
+.ma-config-dialog label {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 12px;
+}
+
+.ma-config-dialog input[type='number'] {
+    width: 50px;
+}
+
+.ma-dialog-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 4px;
+}
+
+.ma-dialog-actions button {
+    font-size: 10px;
+    padding: 2px 4px;
 }
