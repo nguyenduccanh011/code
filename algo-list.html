@@ -95,7 +95,10 @@
     </div>
 
     <script src="src/core/StrategyEngine.js"></script>
-    <script>var currentCandlestickData = [];
+    <script src="src/core/DataProvider.js"></script>
+    <script>
+    var dataProvider = new DataProvider();
+    var currentCandlestickData = [];
     var strategyEngine = new StrategyEngine(null, null);
     </script>
     <script src="src/pages/strategy-builder.js"></script>

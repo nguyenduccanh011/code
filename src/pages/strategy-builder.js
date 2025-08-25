@@ -151,8 +151,17 @@ class StrategyBuilderUI {
         this.editingStrategy = strategy;
     }
 
-    testStrategy() {
+    async testStrategy() {
         console.log('Testing strategy...');
+
+        if (!currentCandlestickData || currentCandlestickData.length === 0) {
+            try {
+                const symbol = this.editingStrategy?.code || 'VNINDEX';
+                currentCandlestickData = await dataProvider.getHistory(symbol, 'D');
+            } catch (err) {
+                console.error('Không thể tải dữ liệu để test:', err);
+            }
+        }
 
         if (!currentCandlestickData || currentCandlestickData.length === 0) {
             alert('Không có dữ liệu để test chiến lược. Vui lòng tải dữ liệu trước.');
@@ -163,16 +172,16 @@ class StrategyBuilderUI {
             const markers = strategyEngine.runStrategy(currentCandlestickData);
 
             if (markers.length > 0) {
-                strategyEngine.displayMarkers(markers);
-                alert(`Chiến lược đã chạy thành công! Tìm thấy ${markers.length} tín hiệu.`);
-
-                const firstMarkerTime = markers[0].time;
-                const dataWithTime = currentCandlestickData.map((d, index) => ({...d, originalIndex: index}));
-                const dataPoint = dataWithTime.find(d => areTimesEqual(d.time, firstMarkerTime));
-
-                if (dataPoint) {
-                    mainChart.timeScale().scrollToPosition(dataPoint.originalIndex, true);
+                if (strategyEngine.mainChart && strategyEngine.mainSeries) {
+                    strategyEngine.displayMarkers(markers);
+                    const firstMarkerTime = markers[0].time;
+                    const dataWithTime = currentCandlestickData.map((d, index) => ({...d, originalIndex: index}));
+                    const dataPoint = dataWithTime.find(d => areTimesEqual(d.time, firstMarkerTime));
+                    if (dataPoint) {
+                        mainChart.timeScale().scrollToPosition(dataPoint.originalIndex, true);
+                    }
                 }
+                alert(`Chiến lược đã chạy thành công! Tìm thấy ${markers.length} tín hiệu.`);
             } else {
                 alert('Chiến lược đã chạy nhưng không tìm thấy tín hiệu nào trong khoảng thời gian hiện tại.');
             }
