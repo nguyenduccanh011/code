@@ -115,4 +115,31 @@ class DataProvider {
         }
     }
     // ▲▲▲ KẾT THÚC THÊM MỚI ▲▲▲
+
+    // ▼▼▼ THÊM MỚI HÀM NÀY ▼▼▼
+    /**
+     * Gọi API backtest ở backend.
+     * @param {Object} config Cấu hình chiến lược và dữ liệu giá.
+     * @returns {Promise<Object|null>} Kết quả backtest hoặc null nếu lỗi.
+     */
+    async runBacktest(config) {
+        const url = `${API_BASE_URL}/api/backtest`;
+        try {
+            const response = await fetch(url, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(config)
+            });
+            if (!response.ok) {
+                throw new Error(`Lỗi server khi backtest: ${response.status}`);
+            }
+            return await response.json();
+        } catch (error) {
+            console.error('Lỗi khi gọi API backtest:', error);
+            return null;
+        }
+    }
+    // ▲▲▲ KẾT THÚC THÊM MỚI ▲▲▲
 }
