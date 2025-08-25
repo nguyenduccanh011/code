@@ -497,6 +497,15 @@ indicatorDropdown.addEventListener('click', async (event) => {
 });
 
 const indicatorFactory = {
+    'ma': {
+        name: 'Moving Average',
+        create: (mainChart, data) => {
+            const periodInput = prompt('Chu kỳ MA?', '20');
+            const period = parseInt(periodInput, 10) || 20;
+            const color = prompt('Màu MA? (vd: #2962FF)', '#2962FF') || '#2962FF';
+            return new MAIndicator(mainChart, { period, color });
+        }
+    },
     'rsi': { name: 'RSI (14)', create: (mainChart, data) => new RSIIndicator(rsiChartContainer, mainChart, mainSeries) },
     'macd': { name: 'MACD (12, 26, 9)', create: (mainChart, data) => new MACDIndicator(null, mainChart, mainSeries) },
     'bb': { name: 'Bollinger Bands (20, 2)', create: (mainChart, data) => new BollingerBandsIndicator(mainChart) }
