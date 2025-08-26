@@ -202,7 +202,9 @@ class StrategyBuilderUI {
                   const m = result.metrics;
                   const win = (m.winrate * 100).toFixed(2) + '%';
                   const mdd = '-' + (m.max_drawdown * 100).toFixed(2) + '%';
-                  const profit = (m.total_return * 100).toFixed(2) + '%';
+                  const profitPercent = (m.total_return * 100).toFixed(2);
+                  const profit = profitPercent + '%';
+                  const change = (m.total_return >= 0 ? '+' : '') + profitPercent + '%';
                   alert(`Backtest hoàn tất!\nWinrate: ${win}\nMDD: ${mdd}\nLợi nhuận: ${profit}`);
                   this.editingStrategy = {
                       ...config,
@@ -211,7 +213,7 @@ class StrategyBuilderUI {
                       winrate: win,
                       mdd: mdd,
                       profit: profit,
-                      change: profit
+                      change: change
                   };
               } else {
                   alert('Backtest không trả về kết quả hợp lệ.');
