@@ -118,14 +118,32 @@ document.addEventListener('DOMContentLoaded', async function () {
         return;
     }
 
+    // Hiển thị mã cổ phiếu và thông tin mô tả
+    const symbolEl = document.getElementById('symbol-display');
+    const descEl = document.getElementById('symbol-description');
+    if (symbolEl) symbolEl.textContent = (algo.code || '').toUpperCase();
+    if (descEl) descEl.textContent = 'Đang tải tên công ty...';
+
     // Cập nhật thông tin tổng quan
     document.getElementById('overview-winrate').textContent = algo.winrate || '--%';
     document.getElementById('overview-mdd').textContent = algo.mdd || '--%';
     document.getElementById('overview-profit').textContent = algo.profit || '--';
 
-    // --- Tải dữ liệu lịch sử ---
-    const history = await dataProvider.getHistory(algo.code, 'D');
+    // --- Tải dữ liệu lịch sử và thông tin công ty ---
+    const [history, companyName] = await Promise.all([
+        dataProvider.getHistory(algo.code, 'D'),
+        dataProvider.getCompanyInfo(algo.code)
+    ]);
+
+    if (descEl) descEl.textContent = companyName || '';
+
     candleSeries.setData(history);
+
+    if (history && history.length > 0) {
+        const latest = history[history.length - 1];
+        const prev = history.length > 1 ? history[history.length - 2] : null;
+        updateSidebar(latest, prev);
+    }
 
     // --- Tính và vẽ các chỉ báo ---
     const indicatorPeriods = new Set();
