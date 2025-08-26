@@ -55,6 +55,15 @@
     var strategyEngine = new StrategyEngine(null, null);
     </script>
     <script>
+  function loadAlgoList() {
+    const algoScript = document.createElement('script');
+    algoScript.src = 'src/pages/algo-list.js';
+    algoScript.onload = () => {
+      document.dispatchEvent(new Event('DOMContentLoaded'));
+    };
+    document.body.appendChild(algoScript);
+  }
+
   fetch('strategy-builder-component.html')
     .then(res => res.text())
     .then(html => {
@@ -62,16 +71,19 @@
       const sbScript = document.createElement('script');
       sbScript.src = 'src/pages/strategy-builder.js';
       sbScript.onload = () => {
-        const algoScript = document.createElement('script');
-        algoScript.src = 'src/pages/algo-list.js';
-        algoScript.onload = () => {
-          document.dispatchEvent(new Event('DOMContentLoaded'));
-        };
-        document.body.appendChild(algoScript);
+        loadAlgoList();
       };
       document.body.appendChild(sbScript);
     })
-    .catch(err => console.error('Không thể tải Strategy Builder:', err));
+    .catch(err => {
+      console.error('Không thể tải Strategy Builder:', err);
+      window.strategyBuilderUI = {
+        loadStrategyConfig: () => {},
+        open: () => alert('Strategy Builder không thể tải'),
+        testStrategy: () => {}
+      };
+      loadAlgoList();
+    });
 </script>
 
 </body>
