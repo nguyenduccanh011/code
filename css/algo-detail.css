@@ -15,6 +15,10 @@
     font-size: 0.9em;
 }
 
+.back-button {
+    margin-bottom: 10px;
+}
+
 .overview-list {
     list-style: none;
     padding: 0;
