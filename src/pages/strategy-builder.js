@@ -1,3 +1,12 @@
+// Utility used by StrategyBuilderUI. If the global helper is not present
+// (e.g. on pages that don't load script.js), define a minimal version here.
+if (typeof areTimesEqual !== 'function') {
+    function areTimesEqual(time1, time2) {
+        if (!time1 || !time2) return false;
+        return JSON.stringify(time1) === JSON.stringify(time2);
+    }
+}
+
 class StrategyBuilderUI {
     constructor() {
         this.panel = document.getElementById('strategy-builder-panel');
