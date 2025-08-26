@@ -1,0 +1,8 @@
+{
+  "name": "algo-dashboard",
+  "version": "1.0.0",
+  "description": "Algorithm dashboard project",
+  "scripts": {
+    "test": "echo \"No tests specified\""
+  }
+}
