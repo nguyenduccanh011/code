@@ -29,6 +29,11 @@ document.addEventListener('DOMContentLoaded', async function () {
         scaleMargins: { top: 0.8, bottom: 0 },
     });
 
+    const rsiChartContainer = document.getElementById('rsi-chart-container');
+    const syncManager = new ChartSyncManager();
+    window.syncManager = syncManager;
+    syncManager.addChart(chart, candleSeries);
+
     const dataProvider = new DataProvider();
 
     const strategyEngine = new StrategyEngine(chart, candleSeries);
@@ -284,41 +289,47 @@ document.addEventListener('DOMContentLoaded', async function () {
             event.preventDefault();
             const indicatorId = event.target.getAttribute('data-indicator');
             if (!indicatorId) return;
+
             if (indicatorId === 'ma') {
                 if (activeIndicators['ma']) {
                     activeIndicators['ma'].remove();
                     delete activeIndicators['ma'];
                 } else {
-                    const ma = new MAIndicator(chart, { period: 20, color: '#2962FF' });
+                    const period = parseInt(prompt('Nhập chu kỳ MA:', '20'), 10) || 20;
+                    const color = prompt('Nhập màu MA (ví dụ: #2962FF):', '#2962FF') || '#2962FF';
+                    const ma = new MAIndicator(chart, { period, color });
                     ma.addToChart(history);
                     activeIndicators['ma'] = ma;
                 }
             } else if (indicatorId === 'rsi') {
                 if (activeIndicators['rsi']) {
-                    chart.removeSeries(activeIndicators['rsi'].series);
+                    activeIndicators['rsi'].remove();
                     delete activeIndicators['rsi'];
                 } else {
-                    const rsiData = [];
-                    for (let i = 0; i < history.length; i++) {
-                        const rsi = strategyEngine.calculateRSI(history, i);
-                        if (rsi !== null) {
-                            rsiData.push({ time: history[i].time, value: rsi });
-                        }
-                    }
-                    const rsiSeries = chart.addLineSeries({
-                        priceScaleId: 'rsi',
-                        color: '#8884d8',
-                        lineWidth: 1,
-                        crosshairMarkerVisible: false,
-                        lastValueVisible: false
-                    });
-                    chart.priceScale('rsi').applyOptions({ scaleMargins: { top: 0.8, bottom: 0 } });
-                    rsiSeries.setData(rsiData);
-                    rsiSeries.createPriceLine({ price: 70, color: '#787B86', lineStyle: LightweightCharts.LineStyle.Dashed });
-                    rsiSeries.createPriceLine({ price: 30, color: '#787B86', lineStyle: LightweightCharts.LineStyle.Dashed });
-                    activeIndicators['rsi'] = { series: rsiSeries };
+                    const rsi = new RSIIndicator(rsiChartContainer, chart, candleSeries);
+                    rsi.addToChart(history);
+                    activeIndicators['rsi'] = rsi;
+                }
+            } else if (indicatorId === 'macd') {
+                if (activeIndicators['macd']) {
+                    activeIndicators['macd'].remove();
+                    delete activeIndicators['macd'];
+                } else {
+                    const macd = new MACDIndicator(null, chart, candleSeries);
+                    macd.addToChart(history);
+                    activeIndicators['macd'] = macd;
+                }
+            } else if (indicatorId === 'bb') {
+                if (activeIndicators['bb']) {
+                    activeIndicators['bb'].remove();
+                    delete activeIndicators['bb'];
+                } else {
+                    const bb = new BollingerBandsIndicator(chart);
+                    bb.addToChart(history);
+                    activeIndicators['bb'] = bb;
                 }
             }
+
             indicatorDropdown.classList.remove('show');
         });
     }
@@ -503,6 +514,11 @@ document.addEventListener('DOMContentLoaded', async function () {
     chartContainer.addEventListener('mouseleave', (e) => onChartMouseUp(e, mainChartTarget));
     chart.subscribeCrosshairMove(onCrosshairMoved);
     window.addEventListener('keydown', handleKeyDown);
+
+    window.onChartMouseDown = onChartMouseDown;
+    window.onChartMouseMove = onChartMouseMove;
+    window.onChartMouseUp = onChartMouseUp;
+    window.onCrosshairMoved = onCrosshairMoved;
 
 });
 

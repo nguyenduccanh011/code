@@ -23,6 +23,8 @@
                 <div class="indicator-dropdown" id="indicator-dropdown-content">
                     <a href="#" data-indicator="ma">Moving Average</a>
                     <a href="#" data-indicator="rsi">RSI (14)</a>
+                    <a href="#" data-indicator="macd">MACD (12, 26, 9)</a>
+                    <a href="#" data-indicator="bb">Bollinger Bands (20, 2)</a>
                 </div>
             </div>
             <a href="algo-list.html" class="tool-button" id="back-to-list">Quay lại</a>
@@ -37,6 +39,7 @@
     </aside>
     <main class="main-chart">
         <div id="main-chart-container"></div>
+        <div id="rsi-chart-container"></div>
     </main>
     <aside class="right-sidebar">
         <div class="market-data-panel">
@@ -89,10 +92,14 @@
 </div>
 
 <script src="https://unpkg.com/lightweight-charts@4.1.0/dist/lightweight-charts.standalone.production.js"></script>
+<script src="src/core/ChartSyncManager.js"></script>
+<script src="src/indicators/MACDIndicator.js"></script>
+<script src="src/indicators/BollingerBandsIndicator.js"></script>
+<script src="src/indicators/MAIndicator.js"></script>
+<script src="src/indicators/RSIIndicator.js"></script>
 <script src="src/tools/TrendLinePrimitive.js"></script>
 <script src="src/core/StrategyEngine.js"></script>
 <script src="src/core/DataProvider.js"></script>
-<script src="src/indicators/MAIndicator.js"></script>
 <script src="src/pages/algo-detail.js"></script>
 </body>
 </html>
