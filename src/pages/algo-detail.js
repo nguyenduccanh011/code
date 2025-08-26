@@ -16,11 +16,11 @@ document.addEventListener('DOMContentLoaded', async function () {
         console.error('Không thể đọc dữ liệu algo đã chọn:', err);
     }
 
-    // Hiển thị tổng quan
-    if (selectedAlgo) {
-        document.getElementById('overview-winrate').textContent = selectedAlgo.winrate || '--';
-        document.getElementById('overview-mdd').textContent = selectedAlgo.mdd || '--';
-        document.getElementById('overview-profit').textContent = selectedAlgo.profit || '--';
+    const backBtn = document.getElementById('back-to-list');
+    if (backBtn) {
+        backBtn.addEventListener('click', () => {
+            window.location.href = 'algo-list.html';
+        });
     }
 
     const symbol = (selectedAlgo && selectedAlgo.code) ? selectedAlgo.code : 'VNINDEX';
@@ -102,31 +102,52 @@ document.addEventListener('DOMContentLoaded', async function () {
                 rsiSeries.setData(rsiData);
             }
 
-            // Xác định các điểm mua/bán
-            const markers = [];
-            const minPeriod = strategyEngine.getMinRequiredPeriod(config);
-            for (let i = minPeriod; i < data.length; i++) {
-                const current = data[i];
-                if (strategyEngine.evaluateConditions(config.buyConditions, data, i, 'buy')) {
-                    markers.push({
-                        time: current.time,
-                        position: 'belowBar',
-                        color: '#2196F3',
-                        shape: 'arrowUp',
-                        text: `Buy @ ${current.close.toFixed(2)}`
+            try {
+                const resp = await fetch('/api/backtest', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        prices: data,
+                        buyConditions: config.buyConditions,
+                        sellConditions: config.sellConditions
+                    })
+                });
+                const result = await resp.json();
+                const metrics = result.metrics || {};
+                document.getElementById('overview-winrate').textContent =
+                    metrics.winrate != null ? (metrics.winrate * 100).toFixed(2) + '%' : '--%';
+                document.getElementById('overview-mdd').textContent =
+                    metrics.max_drawdown != null ? (metrics.max_drawdown * 100).toFixed(2) + '%' : '--%';
+                document.getElementById('overview-profit').textContent =
+                    metrics.total_return != null ? (metrics.total_return * 100).toFixed(2) + '%' : '--';
+                document.getElementById('overview-trades').textContent =
+                    metrics.num_trades != null ? metrics.num_trades : '--';
+                document.getElementById('overview-profit-factor').textContent =
+                    metrics.profit_factor != null ? metrics.profit_factor.toFixed(2) : '--';
+
+                const markers = [];
+                if (Array.isArray(result.trades)) {
+                    result.trades.forEach(trade => {
+                        markers.push({
+                            time: trade.buy_time,
+                            position: 'belowBar',
+                            color: '#2196F3',
+                            shape: 'arrowUp',
+                            text: `Buy @ ${trade.buy_price.toFixed(2)}`
+                        });
+                        markers.push({
+                            time: trade.sell_time,
+                            position: 'aboveBar',
+                            color: '#e91e63',
+                            shape: 'arrowDown',
+                            text: `Sell @ ${trade.sell_price.toFixed(2)}`
+                        });
                     });
                 }
-                if (strategyEngine.evaluateConditions(config.sellConditions, data, i, 'sell')) {
-                    markers.push({
-                        time: current.time,
-                        position: 'aboveBar',
-                        color: '#e91e63',
-                        shape: 'arrowDown',
-                        text: `Sell @ ${current.close.toFixed(2)}`
-                    });
-                }
+                strategyEngine.displayMarkers(markers);
+            } catch (err) {
+                console.error('Không thể backtest:', err);
             }
-            strategyEngine.displayMarkers(markers);
         }
     } catch (error) {
         console.error('Không thể tải dữ liệu biểu đồ:', error);
