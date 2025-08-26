@@ -8,21 +8,82 @@
     <link rel="stylesheet" href="css/algo-detail.css">
 </head>
 <body>
-    <div class="algo-container">
-        <main id="chart-area"></main>
-        <aside class="algo-sidebar">
-            <h2>Tổng quan</h2>
-            <ul class="overview-list">
+<div class="container">
+    <header class="header">
+        <div class="left-header">
+            <div class="symbol-info">
+                <strong id="symbol-display">--</strong>
+                <span id="symbol-description"></span>
+            </div>
+            <div class="ohlc-info"></div>
+        </div>
+        <div class="right-header">
+            <button class="tool-button" id="back-to-list">Danh sách</button>
+        </div>
+    </header>
+    <aside class="left-toolbar">
+        <button class="toolbar-button" id="draw-trend-line-btn">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24">
+                <path fill="currentColor" d="M3.707 20.293a1 1 0 0 0 1.414 0l16-16a1 1 0 0 0-1.414-1.414l-16 16a1 1 0 0 0 0 1.414Z"/>
+            </svg>
+        </button>
+    </aside>
+    <main class="main-chart">
+        <div id="main-chart-container"></div>
+    </main>
+    <aside class="right-sidebar">
+        <div class="market-data-panel">
+            <div class="price-section">
+                <div id="sidebar-price" class="current-price">---</div>
+                <div class="price-change">
+                    <span id="sidebar-change">---</span>
+                    (<span id="sidebar-percent-change">---</span>)
+                </div>
+            </div>
+            <div class="stats-grid">
+                <div class="stat-item">
+                    <span class="stat-label">Cao nhất</span>
+                    <span id="sidebar-high" class="stat-value">---</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-label">Thấp nhất</span>
+                    <span id="sidebar-low" class="stat-value">---</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-label">Mở cửa</span>
+                    <span id="sidebar-open" class="stat-value">---</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-label">Tham chiếu</span>
+                    <span id="sidebar-ref" class="stat-value">---</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-label">KLGD</span>
+                    <span id="sidebar-volume" class="stat-value">---</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-label">GTGD</span>
+                    <span id="sidebar-value" class="stat-value">---</span>
+                </div>
+            </div>
+        </div>
+        <div class="metrics-panel">
+            <h3>Tổng quan</h3>
+            <ul>
                 <li>Winrate: <span id="overview-winrate">--%</span></li>
                 <li>MDD: <span id="overview-mdd">--%</span></li>
                 <li>Lợi nhuận: <span id="overview-profit">--</span></li>
+                <li>Số lệnh: <span id="overview-trades">--</span></li>
+                <li>Profit Factor: <span id="overview-profit-factor">--</span></li>
             </ul>
-        </aside>
-    </div>
+        </div>
+    </aside>
+</div>
 
-    <script src="https://unpkg.com/lightweight-charts@4.1.0/dist/lightweight-charts.standalone.production.js"></script>
-    <script src="src/core/StrategyEngine.js"></script>
-    <script src="src/core/DataProvider.js"></script>
-    <script src="src/pages/algo-detail.js"></script>
+<script src="https://unpkg.com/lightweight-charts@4.1.0/dist/lightweight-charts.standalone.production.js"></script>
+<script src="src/tools/TrendLinePrimitive.js"></script>
+<script src="src/core/StrategyEngine.js"></script>
+<script src="src/core/DataProvider.js"></script>
+<script src="src/pages/algo-detail.js"></script>
 </body>
 </html>
