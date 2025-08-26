@@ -189,6 +189,7 @@ document.addEventListener('DOMContentLoaded', async function () {
                     sellConditions: config.sellConditions
                 });
                 const metrics = result?.metrics || {};
+
                 document.getElementById('overview-winrate').textContent =
                     metrics.winrate != null ? (metrics.winrate * 100).toFixed(2) + '%' : '--%';
                 document.getElementById('overview-mdd').textContent =
@@ -202,6 +203,7 @@ document.addEventListener('DOMContentLoaded', async function () {
 
                 const markers = [];
                 if (Array.isArray(result?.trades)) {
+
                     result.trades.forEach(trade => {
                         markers.push({
                             time: trade.buy_time,
