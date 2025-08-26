@@ -1,7 +1,7 @@
 // File: src/pages/algo-detail.js
 
 document.addEventListener('DOMContentLoaded', async function () {
-    const chartArea = document.getElementById('chart-area');
+    const chartArea = document.getElementById('main-chart-container');
     const chart = LightweightCharts.createChart(chartArea, {
         width: chartArea.clientWidth,
         height: chartArea.clientHeight,
