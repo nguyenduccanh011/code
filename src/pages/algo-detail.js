@@ -9,6 +9,7 @@ document.addEventListener('DOMContentLoaded', async function () {
     });
 
     const candleSeries = chart.addCandlestickSeries({
+
         upColor: '#26a69a',
         downColor: '#ef5350',
         borderVisible: false,
@@ -17,6 +18,7 @@ document.addEventListener('DOMContentLoaded', async function () {
     });
 
     const dataProvider = new DataProvider();
+
     const strategyEngine = new StrategyEngine(chart, candleSeries);
 
     // --- Lấy thông tin algo từ URL hoặc localStorage ---
@@ -143,5 +145,6 @@ document.addEventListener('DOMContentLoaded', async function () {
 
     const markers = generateMarkers();
     candleSeries.setMarkers(markers);
+
 });
 
