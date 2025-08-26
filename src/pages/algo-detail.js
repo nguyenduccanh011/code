@@ -42,4 +42,5 @@ document.addEventListener('DOMContentLoaded', async function () {
     } catch (error) {
         console.error('Không thể tải dữ liệu biểu đồ:', error);
     }
+
 });
