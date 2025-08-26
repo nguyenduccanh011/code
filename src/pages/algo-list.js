@@ -146,5 +146,6 @@ document.addEventListener('DOMContentLoaded', () => {
             algoList.algorithms.push(entry);
         }
         algoList.render();
+        algoList.saveToLocalStorage();
     });
 });
