@@ -18,6 +18,17 @@ document.addEventListener('DOMContentLoaded', async function () {
         wickDownColor: '#ef5350'
     });
 
+    const volumeSeries = chart.addHistogramSeries({
+        priceScaleId: '',
+        priceFormat: { type: 'volume' },
+        priceLineVisible: false,
+        color: '#26a69a',
+    });
+
+    chart.priceScale('').applyOptions({
+        scaleMargins: { top: 0.8, bottom: 0 },
+    });
+
     const dataProvider = new DataProvider();
 
     const strategyEngine = new StrategyEngine(chart, candleSeries);
@@ -155,6 +166,13 @@ document.addEventListener('DOMContentLoaded', async function () {
     if (descEl) descEl.textContent = companyName || '';
 
     candleSeries.setData(history);
+
+    const volumeData = history.map(bar => ({
+        time: bar.time,
+        value: bar.volume,
+        color: bar.close >= bar.open ? '#26a69a' : '#ef5350',
+    }));
+    volumeSeries.setData(volumeData);
 
     if (history && history.length > 0) {
         const latest = history[history.length - 1];
