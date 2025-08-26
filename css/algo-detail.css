@@ -1,10 +1,66 @@
+.main-chart {
+    position: relative;
+}
+
+#main-chart-container {
+    width: 100%;
+    height: 100%;
+}
+
+.right-sidebar {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+    padding: 10px;
+    box-sizing: border-box;
+    border-left: 1px solid #eee;
+    overflow-y: auto;
+}
+
+.market-data-panel {
+    padding-bottom: 10px;
+    border-bottom: 1px solid #eee;
+}
+
+.price-section {
+    margin-bottom: 10px;
+}
+
+.current-price {
+    font-size: 1.4em;
+    font-weight: bold;
+}
+
+.price-change {
+    font-size: 0.9em;
+}
+
+.stats-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 8px 10px;
+    font-size: 0.85em;
+}
+
+.stat-item {
+    display: flex;
+    flex-direction: column;
+}
+
+.stat-label {
+    color: #666;
+}
+
+.stat-value {
+    font-weight: bold;
+}
+
 .metrics-panel {
     margin-top: 20px;
     font-size: 0.9em;
 }
 
 .metrics-panel ul {
-
     list-style: none;
     padding: 0;
     margin: 0;
@@ -16,4 +72,33 @@
 
 #back-to-list {
     margin-right: 10px;
+}
+
+@media (max-width: 768px) {
+    .container {
+        grid-template-columns: 1fr;
+        grid-template-rows: auto 1fr auto;
+    }
+
+    .left-toolbar {
+        display: none;
+    }
+
+    .right-sidebar {
+        grid-column: 1;
+        grid-row: 3;
+        flex-direction: row;
+        flex-wrap: wrap;
+        border-left: none;
+        border-top: 1px solid #eee;
+    }
+
+    .market-data-panel,
+    .metrics-panel {
+        flex: 1 1 250px;
+    }
+
+    #main-chart-container {
+        height: 60vh;
+    }
 }
