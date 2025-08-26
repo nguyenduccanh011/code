@@ -47,6 +47,10 @@
     color: #dc3545;
 }
 
+.action-icon-btn.view {
+    color: #17a2b8;
+}
+
 .action-icon-btn:hover {
     opacity: 0.8;
 }

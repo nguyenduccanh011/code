@@ -64,6 +64,7 @@ class AlgoList {
                 <td>${algo.change}</td>
                 <td>
                     <button class="action-icon-btn run" title="Run"><i class="fa fa-play"></i></button>
+                    <button class="action-icon-btn view" title="View"><i class="fa fa-eye"></i></button>
                     <button class="action-icon-btn edit" title="Edit"><i class="fa fa-edit"></i></button>
                     <button class="action-icon-btn delete" title="Delete"><i class="fa fa-trash"></i></button>
                 </td>
@@ -71,6 +72,7 @@ class AlgoList {
             this.tbody.appendChild(tr);
 
             tr.querySelector('.run').addEventListener('click', () => this.runStrategy(algo.name));
+            tr.querySelector('.view').addEventListener('click', () => this.viewDetails(algo.name));
             tr.querySelector('.edit').addEventListener('click', () => this.editStrategy(algo.name));
             tr.querySelector('.delete').addEventListener('click', () => this.deleteStrategy(algo.name));
         });
@@ -79,6 +81,17 @@ class AlgoList {
     saveToLocalStorage() {
         const userStrategies = this.algorithms.filter(a => a.platform === 'Builder');
         localStorage.setItem('savedStrategies', JSON.stringify(userStrategies));
+    }
+
+    viewDetails(name) {
+        const algo = this.algorithms.find(a => a.name === name);
+        if (!algo) return;
+        try {
+            localStorage.setItem('selectedAlgo', JSON.stringify(algo));
+        } catch (err) {
+            console.error('Failed to save algo details:', err);
+        }
+        window.location.href = 'algo-detail.html?name=' + encodeURIComponent(name);
     }
 
     runStrategy(name) {
