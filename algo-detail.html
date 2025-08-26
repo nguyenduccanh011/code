@@ -18,6 +18,13 @@
             <div class="ohlc-info"></div>
         </div>
         <div class="right-header">
+            <div class="indicator-menu">
+                <button class="tool-button" id="indicator-menu-btn">Chỉ báo</button>
+                <div class="indicator-dropdown" id="indicator-dropdown-content">
+                    <a href="#" data-indicator="ma">Moving Average</a>
+                    <a href="#" data-indicator="rsi">RSI (14)</a>
+                </div>
+            </div>
             <a href="algo-list.html" class="tool-button" id="back-to-list">Quay lại</a>
         </div>
     </header>
@@ -85,6 +92,7 @@
 <script src="src/tools/TrendLinePrimitive.js"></script>
 <script src="src/core/StrategyEngine.js"></script>
 <script src="src/core/DataProvider.js"></script>
+<script src="src/indicators/MAIndicator.js"></script>
 <script src="src/pages/algo-detail.js"></script>
 </body>
 </html>
