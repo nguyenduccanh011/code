@@ -1,0 +1,26 @@
+.algo-container {
+    display: flex;
+    height: 100vh;
+}
+
+#chart-area {
+    flex: 1;
+    background-color: white;
+}
+
+.algo-sidebar {
+    width: 280px;
+    background-color: white;
+    padding: 15px;
+    font-size: 0.9em;
+}
+
+.overview-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+
+.overview-list li {
+    margin-bottom: 8px;
+}
