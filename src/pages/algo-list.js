@@ -63,10 +63,10 @@ class AlgoList {
                 <td>${algo.profit}</td>
                 <td>${algo.change}</td>
                 <td>
-                    <button class="action-icon-btn run" title="Run"><i class="fa fa-play"></i></button>
-                    <button class="action-icon-btn view" title="View"><i class="fa fa-eye"></i></button>
-                    <button class="action-icon-btn edit" title="Edit"><i class="fa fa-edit"></i></button>
-                    <button class="action-icon-btn delete" title="Delete"><i class="fa fa-trash"></i></button>
+                    <button class="action-icon-btn run" title="Run">Run</button>
+                    <button class="action-icon-btn view" title="View">View</button>
+                    <button class="action-icon-btn edit" title="Edit">Edit</button>
+                    <button class="action-icon-btn delete" title="Delete">Delete</button>
                 </td>
             `;
             this.tbody.appendChild(tr);
