@@ -42,6 +42,9 @@ document.addEventListener('DOMContentLoaded', async function () {
     const indicatorMenuBtn = document.getElementById('indicator-menu-btn');
     const indicatorDropdown = document.getElementById('indicator-dropdown-content');
     const activeIndicators = {};
+    const maSettingsPanel = document.getElementById('ma-settings-panel');
+    let maCounter = 0;
+    const defaultMaColors = ['#2962FF', '#FF6D00', '#D81B60', '#43A047', '#6D4C41'];
 
     let drawingState = 'idle';
     let trendLinePoints = [];
@@ -274,6 +277,65 @@ document.addEventListener('DOMContentLoaded', async function () {
     const markers = generateMarkers();
     candleSeries.setMarkers(markers);
 
+    function createMAConfigItem(id, indicator) {
+        const item = document.createElement('div');
+        item.className = 'ma-config';
+        item.dataset.id = id;
+
+        const colorBox = document.createElement('div');
+        colorBox.className = 'ma-color-box';
+        colorBox.style.background = indicator.options.color;
+
+        const label = document.createElement('span');
+        label.textContent = `MA ${indicator.options.period}`;
+
+        const editBtn = document.createElement('button');
+        editBtn.textContent = '⚙';
+
+        const removeBtn = document.createElement('button');
+        removeBtn.textContent = '×';
+
+        const dialog = document.createElement('div');
+        dialog.className = 'ma-config-dialog';
+        dialog.innerHTML = `
+            <label>Chu kỳ: <input type="number" min="1" value="${indicator.options.period}"></label>
+            <label>Màu: <input type="color" value="${indicator.options.color}"></label>
+            <div class="ma-dialog-actions">
+                <button class="ma-dialog-ok">OK</button>
+                <button class="ma-dialog-cancel">Hủy</button>
+            </div>
+        `;
+
+        editBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            dialog.style.display = dialog.style.display === 'flex' ? 'none' : 'flex';
+        });
+
+        dialog.querySelector('.ma-dialog-ok').addEventListener('click', () => {
+            const periodInput = dialog.querySelector('input[type="number"]');
+            const colorInput = dialog.querySelector('input[type="color"]');
+            const newPeriod = parseInt(periodInput.value, 10);
+            const newColor = colorInput.value;
+            indicator.setOptions({ period: newPeriod, color: newColor }, history);
+            label.textContent = `MA ${indicator.options.period}`;
+            colorBox.style.background = indicator.options.color;
+            dialog.style.display = 'none';
+        });
+
+        dialog.querySelector('.ma-dialog-cancel').addEventListener('click', () => {
+            dialog.style.display = 'none';
+        });
+
+        removeBtn.addEventListener('click', () => {
+            indicator.remove();
+            delete activeIndicators[id];
+            item.remove();
+        });
+
+        item.append(colorBox, label, editBtn, removeBtn, dialog);
+        maSettingsPanel.appendChild(item);
+    }
+
     // --- Indicator menu ---
     if (indicatorMenuBtn && indicatorDropdown) {
         indicatorMenuBtn.addEventListener('click', (event) => {
@@ -291,16 +353,13 @@ document.addEventListener('DOMContentLoaded', async function () {
             if (!indicatorId) return;
 
             if (indicatorId === 'ma') {
-                if (activeIndicators['ma']) {
-                    activeIndicators['ma'].remove();
-                    delete activeIndicators['ma'];
-                } else {
-                    const period = parseInt(prompt('Nhập chu kỳ MA:', '20'), 10) || 20;
-                    const color = prompt('Nhập màu MA (ví dụ: #2962FF):', '#2962FF') || '#2962FF';
-                    const ma = new MAIndicator(chart, { period, color });
-                    ma.addToChart(history);
-                    activeIndicators['ma'] = ma;
-                }
+                maCounter++;
+                const color = defaultMaColors[(maCounter - 1) % defaultMaColors.length];
+                const ma = new MAIndicator(chart, { period: 9, color });
+                const id = `ma-${maCounter}`;
+                activeIndicators[id] = ma;
+                ma.addToChart(history);
+                createMAConfigItem(id, ma);
             } else if (indicatorId === 'rsi') {
                 if (activeIndicators['rsi']) {
                     activeIndicators['rsi'].remove();
