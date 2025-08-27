@@ -5,6 +5,11 @@ from flask_cors import CORS
 from vnstock import Listing, Quote, Trading
 from datetime import datetime, timedelta
 import pandas as pd  # <-- THÊM DÒNG NÀY
+import json
+import time
+from pathlib import Path
+
+from cache_manager import CacheManager
 
 
 class BacktestingEngine:
@@ -194,6 +199,7 @@ class BacktestingEngine:
 
 app = Flask(__name__)
 CORS(app)
+cache = CacheManager()
 
 print("Đang tải danh sách công ty...")
 try:
@@ -242,12 +248,18 @@ def get_company_info():
 def get_history():
     symbol = request.args.get('symbol', 'VND').upper()
     resolution = request.args.get('resolution', '1D')
-    
+
     end_date_str = request.args.get('to', datetime.now().strftime('%Y-%m-%d'))
     default_start_date = (datetime.strptime(end_date_str, '%Y-%m-%d') - timedelta(days=365*5)).strftime('%Y-%m-%d')
     start_date_str = request.args.get('from', default_start_date)
 
     print(f"Đang lấy dữ liệu cho {symbol} từ {start_date_str} đến {end_date_str}...")
+
+    cache_key = f"history_{symbol}_{resolution}_{start_date_str}_{end_date_str}"
+    cached = cache.get(cache_key)
+    if cached is not None:
+        print(f"Sử dụng dữ liệu cache cho {symbol}.")
+        return jsonify(cached)
 
     try:
         quote_requester = Quote(symbol=symbol)
@@ -259,9 +271,11 @@ def get_history():
 
         df.dropna(inplace=True)
         df['time'] = df['time'].dt.strftime('%Y-%m-%d')
-        
+        records = df.to_dict(orient='records')
+        cache.set(cache_key, records, ttl=86400)
+
         print(f"Lấy dữ liệu SẠCH thành công cho {symbol}.")
-        return jsonify(df.to_dict(orient='records'))
+        return jsonify(records)
 
     except Exception as e:
         print(f"Đã xảy ra lỗi khi lấy dữ liệu cho {symbol}: {e}")
@@ -273,7 +287,13 @@ def get_market_data():
     symbol = request.args.get('symbol', 'VNINDEX').upper()
     if trading_manager is None:
         return jsonify({"error": "Trading manager chưa được khởi tạo."}), 500
-    
+
+    cache_key = f"market_{symbol}"
+    cached = cache.get(cache_key)
+    if cached is not None:
+        print(f"Sử dụng dữ liệu thị trường cache cho {symbol}.")
+        return jsonify(cached)
+
     print(f"Đang lấy dữ liệu thị trường cho {symbol}...")
     try:
         data = trading_manager.price_board([symbol])
@@ -292,7 +312,8 @@ def get_market_data():
 
         # Bây giờ DataFrame đã an toàn để chuyển đổi
         result = data.to_dict(orient='records')[0]
-        
+        cache.set(cache_key, result, ttl=60)
+
         print(f"Lấy dữ liệu thị trường thành công cho {symbol}.")
         return jsonify(result)
 
