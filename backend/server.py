@@ -2,7 +2,7 @@
 
 from flask import Flask, jsonify, request
 from flask_cors import CORS
-from vnstock import Listing, Quote, Trading
+from vnstock import Listing, Quote, Trading, Finance
 from datetime import datetime, timedelta
 import pandas as pd  # <-- THÊM DÒNG NÀY
 import json
@@ -206,11 +206,14 @@ try:
     listing_manager = Listing()
     all_companies_df = listing_manager.symbols_by_exchange()
     all_companies_df.set_index('symbol', inplace=True)
+    industries_df = listing_manager.symbols_by_industries()
+    industries_df.set_index('symbol', inplace=True)
     trading_manager = Trading()
     print("Tải danh sách công ty thành công.")
 except Exception as e:
     print(f"Lỗi khi tải danh sách công ty: {e}")
     all_companies_df = None
+    industries_df = None
     trading_manager = None
 
 
@@ -321,6 +324,58 @@ def get_market_data():
         print(f"Lỗi khi lấy dữ liệu thị trường cho {symbol}: {e}")
         return jsonify({"error": str(e)}), 500
 # ▲▲▲ KẾT THÚC THAY ĐỔI ▲▲▲
+
+
+@app.route('/api/financials')
+def get_financials():
+    symbol = request.args.get('symbol', 'ACB').upper()
+    statement = request.args.get('statement', 'ratio')
+    period = request.args.get('period', 'year')
+    source = request.args.get('source', 'VCI')
+    include_industry = request.args.get('industry', 'false').lower() == 'true'
+
+    cache_key = f"financials_{symbol}_{statement}_{period}_{source}"
+    cached = cache.get(cache_key)
+    if cached is not None:
+        return jsonify(cached)
+
+    try:
+        finance = Finance(symbol=symbol, source=source)
+        if statement == 'balance_sheet':
+            df = finance.balance_sheet(period=period, dropna=True)
+        elif statement == 'income_statement':
+            df = finance.income_statement(period=period, dropna=True)
+        elif statement == 'cash_flow':
+            df = finance.cash_flow(period=period, dropna=True)
+        else:
+            df = finance.ratio(period=period, dropna=True)
+
+        df.fillna('', inplace=True)
+        result = {'data': df.to_dict(orient='records')}
+
+        if statement == 'ratio' and include_industry and industries_df is not None:
+            try:
+                industry_code = industries_df.loc[symbol]['icb_code4']
+                peers = industries_df[industries_df['icb_code4'] == industry_code].index.tolist()
+                peers = [p for p in peers if p != symbol][:10]
+                peer_ratios = []
+                for p in peers:
+                    try:
+                        peer_df = Finance(symbol=p, source=source).ratio(period=period, dropna=True)
+                        if not peer_df.empty:
+                            peer_ratios.append(peer_df.iloc[0])
+                    except Exception:
+                        continue
+                if peer_ratios:
+                    peer_df_all = pd.DataFrame(peer_ratios)
+                    result['industry_averages'] = peer_df_all.mean(numeric_only=True).to_dict()
+            except Exception as e:
+                result['industry_averages_error'] = str(e)
+
+        cache.set(cache_key, result, ttl=86400)
+        return jsonify(result)
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
 
 
 @app.route('/api/backtest', methods=['POST'])

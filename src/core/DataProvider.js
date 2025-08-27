@@ -118,6 +118,29 @@ class DataProvider {
 
     // ▼▼▼ THÊM MỚI HÀM NÀY ▼▼▼
     /**
+     * Lấy báo cáo tài chính hoặc chỉ số cơ bản.
+     * @param {string} symbol Mã chứng khoán.
+     * @param {string} statement Loại báo cáo: balance_sheet, income_statement, cash_flow, ratio.
+     * @param {string} period Kỳ dữ liệu: 'quarter' hoặc 'year'.
+     * @returns {Promise<Object|null>} Dữ liệu báo cáo tài chính hoặc null nếu lỗi.
+     */
+    async getFinancials(symbol, statement = 'ratio', period = 'year') {
+        const url = `${API_BASE_URL}/api/financials?symbol=${symbol}&statement=${statement}&period=${period}&industry=true`;
+        try {
+            const response = await fetch(url);
+            if (!response.ok) {
+                throw new Error(`Lỗi server khi lấy báo cáo tài chính: ${response.status}`);
+            }
+            return await response.json();
+        } catch (error) {
+            console.error(`Lỗi khi gọi API báo cáo tài chính cho ${symbol}:`, error);
+            return null;
+        }
+    }
+    // ▲▲▲ KẾT THÚC THÊM MỚI ▲▲▲
+
+    // ▼▼▼ THÊM MỚI HÀM NÀY ▼▼▼
+    /**
      * Gọi API backtest ở backend.
      * @param {Object} config Cấu hình chiến lược và dữ liệu giá.
      * @returns {Promise<Object|null>} Kết quả backtest hoặc null nếu lỗi.
