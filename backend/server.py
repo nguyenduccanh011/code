@@ -1,9 +1,10 @@
 # /backend/server.py
 
-from flask import Flask, jsonify, request
+from flask import Flask, jsonify, request, Response
 from flask_cors import CORS
 from vnstock import Listing, Quote, Trading
 from datetime import datetime, timedelta
+import numpy as np
 import pandas as pd  # <-- THÊM DÒNG NÀY
 import json
 import time
@@ -350,7 +351,57 @@ def api_screener():
         return jsonify({"error": str(e)}), 500
 
 
-@app.route('/api/financials')
+
+@app.route('/api/screener')
+def api_screener():
+    """Screener proxy with cleaned JSON (NaN->null, rounded numbers).
+       Params:
+         - exchange: comma-separated exchanges (default: HOSE,HNX,UPCOM)
+         - limit: number of rows (default: 500)
+         - columns: optional comma-separated list to keep
+    """
+    try:
+        from vnstock import Screener
+    except Exception:
+        Screener = None
+    if Screener is None:
+        return jsonify({"error": "Screener kh�ng kh? d?ng (thi?u vnstock.Screener)."}), 501
+
+    exchange = request.args.get('exchange', 'HOSE,HNX,UPCOM')
+    limit = int(request.args.get('limit', 500))
+    params = {"exchangeName": exchange}
+
+    cache_key = f"screener_{exchange}_{limit}"
+    cached = cache.get(cache_key)
+    if cached is not None:
+        return Response(json.dumps(cached, ensure_ascii=False), mimetype='application/json; charset=utf-8')
+
+    try:
+        df = Screener().stock(params=params, limit=limit)
+        if df is None or df.empty:
+            return jsonify([])
+        # 1) drop columns that are completely NaN
+        df = df.dropna(axis=1, how='all')
+        # 2) replace NaN/inf with None to get strict JSON null
+        df = df.replace({np.nan: None, np.inf: None, -np.inf: None})
+        # 3) round numeric columns
+        num_cols = df.select_dtypes(include='number').columns
+        if len(num_cols) > 0:
+            df.loc[:, num_cols] = df.loc[:, num_cols].round(2)
+        # 4) optional select columns
+        cols_param = request.args.get('columns')
+        if cols_param:
+            want = [c.strip() for c in cols_param.split(',') if c.strip()]
+            keep = [c for c in want if c in df.columns]
+            if keep:
+                df = df[keep]
+
+        records = df.to_dict(orient='records')
+        cache.set(cache_key, records, ttl=300)
+        return Response(json.dumps(records, ensure_ascii=False), mimetype='application/json; charset=utf-8')
+    except Exception as e:
+        print(f"L?i Screener: {e}")
+        return jsonify({"error": str(e)}), 500@app.route('/api/financials')
 def api_financials():
     symbol = (request.args.get('symbol') or 'FPT').upper()
     ftype = request.args.get('type', 'income')  # income|balance|cashflow
@@ -476,3 +527,4 @@ def run_backtest():
 
 if __name__ == '__main__':
     app.run(debug=True, port=5000)
+
