@@ -4,7 +4,9 @@
 
 function areTimesEqual(time1, time2) {
     if (!time1 || !time2) return false;
-    // So sánh chuỗi JSON để đảm bảo tất cả các thành phần thời gian khớp nhau
+    if (window.AppUtils && window.AppUtils.time && typeof window.AppUtils.time.areTimesEqual === "function") {
+        return window.AppUtils.time.areTimesEqual(time1, time2);
+    }
     return JSON.stringify(time1) === JSON.stringify(time2);
 }
 
@@ -67,23 +69,80 @@ let moveState = {
 
 const mainChartContainer = document.getElementById('main-chart-container');
 const rsiChartContainer = document.getElementById('rsi-chart-container');
+const themeToggleBtn = document.getElementById('theme-toggle-btn');
+const chartLoadingEl = document.getElementById('chart-loading');
 
-const mainChart = LightweightCharts.createChart(mainChartContainer, {
-    autoSize: true,
-    layout: { background: { color: '#ffffff' }, textColor: '#333' },
-    grid: { vertLines: { color: '#f0f3f5' }, horzLines: { color: '#f0f3f5' } },
-    timeScale: { borderColor: '#ddd', timeVisible: true, secondsVisible: false, rightOffset: 50 },
-    watermark: { color: 'rgba(200, 200, 200, 0.4)', visible: true, text: 'VNINDEX', fontSize: 48, horzAlign: 'center', vertAlign: 'center' },
-    crosshair: { mode: LightweightCharts.CrosshairMode.Normal },
-});
-
-const mainSeries = mainChart.addCandlestickSeries({ upColor: '#26a69a', downColor: '#ef5350', borderVisible: false, wickUpColor: '#26a69a', wickDownColor: '#ef5350' });
-const volumeSeries = mainChart.addHistogramSeries({ priceFormat: { type: 'volume' }, priceScaleId: '' });
-mainChart.priceScale('').applyOptions({ scaleMargins: { top: 0.8, bottom: 0 } });
+// Khởi tạo chart qua ChartView nếu sẵn sàng; nếu chưa, fallback sang tạo trực tiếp
+let chartView;
+let mainChart;
+let mainSeries;
+let volumeSeries;
+if (window.ChartView && typeof window.ChartView === 'function') {
+    chartView = new window.ChartView({ mainContainer: mainChartContainer, rsiContainer: rsiChartContainer, LightweightCharts });
+    mainChart = chartView.mainChart();
+    mainSeries = chartView.mainSeries();
+    volumeSeries = chartView.volumeSeries();
+} else {
+    mainChart = LightweightCharts.createChart(mainChartContainer, {
+        autoSize: true,
+        layout: { background: { color: '#ffffff' }, textColor: '#333' },
+        grid: { vertLines: { color: '#f0f3f5' }, horzLines: { color: '#f0f3f5' } },
+        timeScale: { borderColor: '#ddd', timeVisible: true, secondsVisible: false, rightOffset: 50 },
+        watermark: { color: 'rgba(200, 200, 200, 0.4)', visible: true, text: 'VNINDEX', fontSize: 48, horzAlign: 'center', vertAlign: 'center' },
+        crosshair: { mode: LightweightCharts.CrosshairMode.Normal },
+    });
+    mainSeries = mainChart.addCandlestickSeries({ upColor: '#26a69a', downColor: '#ef5350', borderVisible: false, wickUpColor: '#26a69a', wickDownColor: '#ef5350' });
+    volumeSeries = mainChart.addHistogramSeries({ priceFormat: { type: 'volume' }, priceScaleId: '' });
+    mainChart.priceScale('').applyOptions({ scaleMargins: { top: 0.8, bottom: 0 } });
+    chartView = {
+        mainChart: () => mainChart,
+        mainSeries: () => mainSeries,
+        volumeSeries: () => volumeSeries,
+        setCandles: (candles) => mainSeries.setData(candles),
+        setVolumeFromCandles: (candles) => {
+            const volumeData = candles.map(item => ({
+                time: item.time,
+                value: item.volume,
+                color: item.close > item.open ? 'rgba(38, 166, 164, 0.5)' : 'rgba(239, 83, 80, 0.5)'
+            }));
+            volumeSeries.setData(volumeData);
+        },
+        setMarkers: (markers) => mainSeries.setMarkers(markers || []),
+        timeScale: () => mainChart.timeScale(),
+    };
+}
 const smaLineSeries = mainChart.addLineSeries({ color: 'rgba(4, 111, 232, 1)', lineWidth: 2, crosshairMarkerVisible: false });
 
 // ▼▼▼ THÊM DÒNG NÀY ĐỂ TẠO SERIES CHO SMA 20 ▼▼▼
 const sma20LineSeries = mainChart.addLineSeries({ color: 'rgba(255, 109, 0, 1)', lineWidth: 2, crosshairMarkerVisible: false });
+
+function applyThemeToChart(theme) {
+    const isDark = theme === 'dark' || document.body.classList.contains('theme-dark');
+    mainChart.applyOptions({
+        layout: { background: { color: isDark ? '#0f1419' : '#ffffff' }, textColor: isDark ? '#d0d4d8' : '#333' },
+        grid: { vertLines: { color: isDark ? '#1f2a35' : '#f0f3f5' }, horzLines: { color: isDark ? '#1f2a35' : '#f0f3f5' } },
+        crosshair: { mode: LightweightCharts.CrosshairMode.Normal },
+        watermark: { color: isDark ? 'rgba(200,200,200,0.15)' : 'rgba(200,200,200,0.4)' },
+    });
+}
+
+// Init theme from localStorage
+try {
+    const stored = localStorage.getItem('theme');
+    if (stored === 'dark') {
+        document.body.classList.add('theme-dark');
+    }
+    applyThemeToChart(stored === 'dark' ? 'dark' : 'light');
+} catch (e) {}
+
+if (themeToggleBtn) {
+    themeToggleBtn.addEventListener('click', () => {
+        const isDark = document.body.classList.toggle('theme-dark');
+        applyThemeToChart(isDark ? 'dark' : 'light');
+        try { localStorage.setItem('theme', isDark ? 'dark' : 'light'); } catch (e) {}
+        themeToggleBtn.textContent = isDark ? '☀️' : '🌙';
+    });
+}
 
 
 syncManager.addChart(mainChart, mainSeries);
@@ -98,17 +157,15 @@ let isStrategyActive = false; // Biến trạng thái để bật/tắt chiến 
 // LOGIC CẬP NHẬT SIDEBAR
 // ===================================================================================
 function formatLargeNumber(num) {
-    if (!num || isNaN(num)) return '---';
-    if (num >= 1e9) {
-        return (num / 1e9).toFixed(2) + ' tỷ';
+    if (window.AppUtils && window.AppUtils.format && typeof window.AppUtils.format.formatLargeNumber === "function") {
+        return window.AppUtils.format.formatLargeNumber(num);
     }
-    if (num >= 1e6) {
-        return (num / 1e6).toFixed(1) + ' tr';
-    }
-    if (num >= 1e3) {
-        return (num / 1e3).toFixed(0) + ' k';
-    }
-    return num.toLocaleString();
+    if (num === null || num === undefined || isNaN(num)) return "---";
+    const n = Number(num);
+    if (n >= 1e9) return (n / 1e9).toFixed(2) + " t?";
+    if (n >= 1e6) return (n / 1e6).toFixed(1) + " tr";
+    if (n >= 1e3) return (n / 1e3).toFixed(0) + " k";
+    return n.toLocaleString();
 }
 
 function updateSidebar(latestData, previousData) {
@@ -136,7 +193,9 @@ function updateSidebar(latestData, previousData) {
 
     // ▼▼▼ THÊM TÍNH TOÁN VÀ HIỂN THỊ GTGD ▼▼▼
     const tradingValue = latestData.close * latestData.volume;
-    valueEl.textContent = formatLargeNumber(tradingValue);
+    valueEl.textContent = (window.AppUtils && window.AppUtils.format)
+        ? window.AppUtils.format.formatLargeNumber(tradingValue)
+        : formatLargeNumber(tradingValue);
     // ▲▲▲ KẾT THÚC THÊM MỚI ▲▲▲
     
     priceEl.textContent = close.toFixed(2);
@@ -147,7 +206,9 @@ function updateSidebar(latestData, previousData) {
     lowEl.textContent = latestData.low.toFixed(2);
     openEl.textContent = latestData.open.toFixed(2);
     refEl.textContent = refPrice.toFixed(2);
-    volumeEl.textContent = formatLargeNumber(latestData.volume);
+    volumeEl.textContent = (window.AppUtils && window.AppUtils.format)
+        ? window.AppUtils.format.formatLargeNumber(latestData.volume)
+        : formatLargeNumber(latestData.volume);
     
     // Cập nhật màu sắc
     const elementsToColor = [priceEl, changeEl, percentChangeEl, highEl, lowEl, openEl];
@@ -177,48 +238,42 @@ function updateSidebar(latestData, previousData) {
 // LOGIC CẬP NHẬT DỮ LIỆU VÀ SỰ KIỆN
 // ===================================================================================
 
-function applyDataToChart(candlestickData) {
-    mainSeries.setData(candlestickData);
+function setCandlesAndVolume(candlestickData) {
+    chartView.setCandles(candlestickData);
+    chartView.setVolumeFromCandles(candlestickData);
+}
 
-    const volumeData = candlestickData.map(item => ({
-        time: item.time,
-        value: item.volume,
-        color: item.close > item.open ? 'rgba(38, 166, 164, 0.5)' : 'rgba(239, 83, 80, 0.5)'
-    }));
-    volumeSeries.setData(volumeData);
-
+function updateIndicatorsAndStrategy(candlestickData) {
     const smaData = calculateSMA(candlestickData, 9);
     smaLineSeries.setData(smaData);
-
-    // ▼▼▼ THÊM LOGIC TÍNH TOÁN VÀ VẼ SMA 20 ▼▼▼
     const sma20Data = calculateSMA(candlestickData, 20);
     sma20LineSeries.setData(sma20Data);
-
 
     for (const id in activeIndicators) {
         if (activeIndicators[id] && typeof activeIndicators[id].update === 'function') {
             activeIndicators[id].update(candlestickData);
         }
     }
-     // Nếu chiến lược đang được kích hoạt, chạy lại nó với dữ liệu mới
+
     if (isStrategyActive) {
         const markers = strategyManager.runSMACrossoverStrategy(candlestickData);
         strategyManager.displayMarkers(markers);
     } else {
-        strategyManager.clearMarkers(); // Xóa marker nếu chiến lược không active
+        strategyManager.clearMarkers();
     }
+}
 
-
-    // ▼▼▼ THÊM LOGIC GỌI `updateSidebar` TẠI ĐÂY ▼▼▼
+function applyDataToChart(candlestickData) {
+    setCandlesAndVolume(candlestickData);
+    updateIndicatorsAndStrategy(candlestickData);
     if (candlestickData && candlestickData.length > 0) {
         const lastDataPoint = candlestickData[candlestickData.length - 1];
         const previousDataPoint = candlestickData.length > 1 ? candlestickData[candlestickData.length - 2] : null;
         updateSidebar(lastDataPoint, previousDataPoint);
     }
-    // ▲▲▲ KẾT THÚC THÊM ▲▲▲
 }
-
 async function initialLoad(symbol, timeframe) {
+    if (chartLoadingEl) chartLoadingEl.style.display = 'flex';
     document.getElementById('symbol-display').textContent = symbol.toUpperCase();
     document.getElementById('symbol-description').textContent = "Đang tải tên công ty...";
     mainChart.applyOptions({ watermark: { text: symbol.toUpperCase() } });
@@ -253,6 +308,7 @@ async function initialLoad(symbol, timeframe) {
 
     setTimeout(() => {
         initialLoadCompleted = true;
+        if (chartLoadingEl) chartLoadingEl.style.display = 'none';
     }, 500);
 }
 
@@ -521,6 +577,19 @@ function initializeSearch() {
     });
 }
 
+function mergeCandles(existing, incoming) {
+    const map = new Map();
+    existing.forEach(item => map.set(`${item.time.year}-${item.time.month}-${item.time.day}`, item));
+    incoming.forEach(item => map.set(`${item.time.year}-${item.time.month}-${item.time.day}`, item));
+    const arr = Array.from(map.values());
+    arr.sort((a, b) => {
+        const da = new Date(a.time.year, a.time.month - 1, a.time.day);
+        const db = new Date(b.time.year, b.time.month - 1, b.time.day);
+        return da - db;
+    });
+    return arr;
+}
+
 async function loadMoreHistory() {
     if (isLoadingMoreData || !initialLoadCompleted || currentCandlestickData.length === 0) {
         return;
@@ -544,20 +613,7 @@ async function loadMoreHistory() {
 
     if (olderData && olderData.length > 0) {
         
-        const combinedData = [...olderData, ...currentCandlestickData];
-
-        const uniqueDataMap = new Map();
-        combinedData.forEach(item => {
-            const timeKey = `${item.time.year}-${item.time.month}-${item.time.day}`;
-            uniqueDataMap.set(timeKey, item);
-        });
-
-        const uniqueDataArray = Array.from(uniqueDataMap.values());
-        uniqueDataArray.sort((a, b) => {
-            const dateA = new Date(a.time.year, a.time.month - 1, a.time.day);
-            const dateB = new Date(b.time.year, b.time.month - 1, b.time.day);
-            return dateA - dateB;
-        });
+        const uniqueDataArray = mergeCandles(currentCandlestickData, olderData);
 
         setTimeout(() => {
             currentCandlestickData = uniqueDataArray;
@@ -738,8 +794,8 @@ function onChartMouseMove(event, target) {
             line._p1.price = price;
             break;
         case 'p2':
-            line._p1.time = time;
-            line._p1.price = price;
+            line._p2.time = time;
+            line._p2.price = price;
             break;
     }
 

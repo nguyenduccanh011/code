@@ -4,6 +4,28 @@ body {
     background-color: #f0f3f5;
 }
 
+/* ---- Added: Dark theme + Loading Spinner ---- */
+body.theme-dark { background-color: #0f1419; color: #e6e6e6; }
+body.theme-dark .header,
+body.theme-dark .left-toolbar,
+body.theme-dark .main-chart,
+body.theme-dark .right-sidebar { background-color: #1b232d; color: #d0d4d8; }
+body.theme-dark .timeframe-button:hover { background-color: #263240; }
+body.theme-dark .timeframe-button.active { background-color: #213a5a; color: #8ab4f8; }
+body.theme-dark .tool-button { background-color: #2a3642; border-color: #33414f; color: #e6e6e6; }
+body.theme-dark .tool-button:hover { background-color: #324151; }
+body.theme-dark .indicator-dropdown { background-color: #1f2a35; box-shadow: 0 8px 16px rgba(0,0,0,0.4); }
+body.theme-dark .indicator-dropdown a:hover { background-color: #2b3a49; }
+body.theme-dark #symbol-search-input { background-color: #0f1419; color: #e6e6e6; border-color: #34414d; }
+body.theme-dark .suggestions-container { background-color: #1b232d; border-color: #2b3846; box-shadow: 0 8px 16px rgba(0,0,0,0.5); }
+body.theme-dark .suggestion-item:hover { background-color: #2b3a49; }
+body.theme-dark .toolbar-button:hover { background-color: #263240; }
+
+.loading-overlay { position: absolute; inset: 0; background: rgba(255,255,255,0.6); display: flex; align-items: center; justify-content: center; z-index: 1002; }
+body.theme-dark .loading-overlay { background: rgba(15,20,25,0.5); }
+.spinner { width: 28px; height: 28px; border: 3px solid #ccc; border-top-color: #2962ff; border-radius: 50%; animation: spin 0.9s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+
 .container {
     display: grid;
     grid-template-columns: 50px 1fr 280px;
