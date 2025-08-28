@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Screener</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body class="sc-page">
+  <header class="sc-header">
+    <div class="sc-wrap sc-head-inner">
+      <div class="sc-left">
+        <strong class="sc-title">Screener</strong>
+        <a class="tool-button" href="index.html">← Về biểu đồ</a>
+      </div>
+      <div class="sc-right">
+        <input id="sc-search" class="sc-input" placeholder="Tìm mã / tên..." />
+        <label>Exchange</label>
+        <select id="sc-exchange" class="timeframe-button">
+          <option value="HOSE,HNX,UPCOM" selected>Tất cả</option>
+          <option value="HOSE">HOSE</option>
+          <option value="HNX">HNX</option>
+          <option value="UPCOM">UPCOM</option>
+        </select>
+        <label>Limit</label>
+        <select id="sc-limit" class="timeframe-button">
+          <option>50</option>
+          <option selected>100</option>
+          <option>200</option>
+        </select>
+        <label>Cột</label>
+        <select id="sc-preset" class="timeframe-button">
+          <option value="basic" selected>Cơ bản</option>
+          <option value="valuation">Định giá</option>
+          <option value="ma">MA%</option>
+        </select>
+        <button id="sc-refresh" class="tool-button">Lọc</button>
+        <button id="sc-export" class="tool-button">Xuất CSV</button>
+      </div>
+    </div>
+  </header>
+
+  <main class="sc-main">
+    <div class="sc-wrap">
+      <div class="sc-card">
+        <div id="sc-table-wrap" class="sc-table-wrap">
+          <div id="sc-loading" class="loading-overlay" style="display:none;"><div class="spinner"></div></div>
+          <table id="sc-table" class="sc-table">
+            <thead></thead>
+            <tbody></tbody>
+          </table>
+        </div>
+        <div class="sc-pager">
+          <div class="sc-wrap sc-pager-inner">
+            <div class="sc-pager-left">
+              <label>Rows/page</label>
+              <select id="sc-pagesize" class="timeframe-button">
+                <option>25</option>
+                <option selected>50</option>
+                <option>100</option>
+              </select>
+            </div>
+            <div class="sc-pager-right">
+              <button id="sc-prev" class="tool-button">◀</button>
+              <span id="sc-pageinfo">1 / 1</span>
+              <button id="sc-next" class="tool-button">▶</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <script src="src/core/DataProvider.js"></script>
+  <script src="src/pages/screener.js" defer></script>
+</body>
+<style>
+  .sc-page { background: #f0f3f5; }
+  body.theme-dark.sc-page { background: #0f1419; }
+  .sc-wrap { max-width: 1280px; margin: 0 auto; padding: 0 16px; }
+  .sc-header { position: sticky; top:0; z-index: 10; background: #fff; border-bottom:1px solid #eee; }
+  body.theme-dark .sc-header { background:#1b232d; border-color:#2b3846; }
+  .sc-head-inner { display:flex; align-items:center; justify-content:space-between; height:56px; }
+  .sc-left { display:flex; align-items:center; gap:10px; }
+  .sc-right { display:flex; align-items:center; gap:8px; }
+  .sc-title { font-size: 18px; }
+  .sc-input { padding:6px 8px; border:1px solid #ddd; border-radius:4px; }
+  body.theme-dark .sc-input { background:#0f1419; border-color:#34414d; color:#e6e6e6; }
+  .sc-main { padding: 16px 0 24px; }
+  .sc-card { background:#fff; border:1px solid #eee; border-radius:8px; box-shadow:0 1px 2px rgba(0,0,0,0.04); }
+  body.theme-dark .sc-card { background:#1b232d; border-color:#2b3846; box-shadow: 0 1px 2px rgba(0,0,0,0.2); }
+  .sc-table-wrap { overflow:auto; max-height: calc(100vh - 56px - 40px); position: relative; }
+  .sc-table { width:100%; border-collapse: collapse; font-size: 12px; }
+  .sc-table th, .sc-table td { padding:8px 10px; border-bottom:1px solid #eee; text-align:right; }
+  .sc-table tbody tr:nth-child(odd) { background: #fafafa; }
+  body.theme-dark .sc-table th, body.theme-dark .sc-table td { border-color:#2b3846; }
+  body.theme-dark .sc-table tbody tr:nth-child(odd) { background: #1a222c; }
+  .sc-table th:first-child, .sc-table td:first-child { text-align:left; position:sticky; left:0; background:inherit; }
+  .sc-table thead th { position:sticky; top:0; background:#fff; z-index:1; }
+  body.theme-dark .sc-table thead th { background:#1b232d; }
+  .sc-pager { border-top:1px solid #eee; }
+  body.theme-dark .sc-pager { border-color:#2b3846; }
+  .sc-pager-inner { display:flex; justify-content:space-between; align-items:center; height:48px; }
+  .pos-green { color: #27ae60; }
+  .neg-red { color: #e53935; }
+</style>
+</html>

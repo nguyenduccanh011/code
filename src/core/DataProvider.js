@@ -61,8 +61,8 @@ class DataProvider {
     }
 
     // Screener: danh sách cổ phiếu theo tiêu chí cơ bản (đơn giản theo sàn)
-    async runScreener({ exchange = 'HOSE,HNX,UPCOM', limit = 500 } = {}) {
-        const url = `${API_BASE_URL}/api/screener?exchange=${encodeURIComponent(exchange)}&limit=${limit}`;
+    async runScreener({ exchange = 'HOSE,HNX,UPCOM', limit = 500, q = '' } = {}) {
+        const url = `${API_BASE_URL}/api/screener?exchange=${encodeURIComponent(exchange)}&limit=${limit}&q=${encodeURIComponent(q)}`;
         try {
             const res = await fetch(url);
             if (!res.ok) throw new Error(`HTTP ${res.status}`);

@@ -1,3 +1,4 @@
+﻿# -*- coding: utf-8 -*-
 # /backend/server.py
 
 from flask import Flask, jsonify, request, Response
@@ -5,7 +6,7 @@ from flask_cors import CORS
 from vnstock import Listing, Quote, Trading
 from datetime import datetime, timedelta
 import numpy as np
-import pandas as pd  # <-- THÊM DÒNG NÀY
+import pandas as pd  # <-- THÃŠM DÃ’NG NÃ€Y
 import json
 import time
 from pathlib import Path
@@ -131,9 +132,9 @@ class BacktestingEngine:
             long_sma = self._calculate_sma(long_p, index)
             prev_short = self._calculate_sma(short_p, index - 1)
             prev_long = self._calculate_sma(long_p, index - 1)
-            if direction.find("cắt lên") != -1:
+            if direction.find("cáº¯t lÃªn") != -1:
                 return prev_short < prev_long and short_sma > long_sma
-            if direction.find("cắt xuống") != -1:
+            if direction.find("cáº¯t xuá»‘ng") != -1:
                 return prev_short > prev_long and short_sma < long_sma
             return False
 
@@ -202,15 +203,15 @@ app = Flask(__name__)
 CORS(app)
 cache = CacheManager()
 
-print("Đang tải danh sách công ty...")
+print("Äang táº£i danh sÃ¡ch cÃ´ng ty...")
 try:
     listing_manager = Listing()
     all_companies_df = listing_manager.symbols_by_exchange()
     all_companies_df.set_index('symbol', inplace=True)
     trading_manager = Trading()
-    print("Tải danh sách công ty thành công.")
+    print("Táº£i danh sÃ¡ch cÃ´ng ty thÃ nh cÃ´ng.")
 except Exception as e:
-    print(f"Lỗi khi tải danh sách công ty: {e}")
+    print(f"Lá»—i khi táº£i danh sÃ¡ch cÃ´ng ty: {e}")
     all_companies_df = None
     trading_manager = None
 
@@ -218,13 +219,13 @@ except Exception as e:
 @app.route('/api/all_companies')
 def get_all_companies():
     if all_companies_df is None:
-        return jsonify({"error": "Danh sách công ty chưa được tải."}), 500
+        return jsonify({"error": "Danh sÃ¡ch cÃ´ng ty chÆ°a Ä‘Æ°á»£c táº£i."}), 500
     try:
         companies_list = all_companies_df.reset_index()
         result = companies_list[['symbol', 'organ_name']].to_dict(orient='records')
         return jsonify(result)
     except Exception as e:
-        print(f"Lỗi khi xử lý danh sách công ty: {e}")
+        print(f"Lá»—i khi xá»­ lÃ½ danh sÃ¡ch cÃ´ng ty: {e}")
         return jsonify({"error": str(e)}), 500
 
 
@@ -232,18 +233,60 @@ def get_all_companies():
 def get_company_info():
     symbol = request.args.get('symbol', 'VND').upper()
     if all_companies_df is None:
-        return jsonify({"error": "Danh sách công ty chưa được tải."}), 500
+        return jsonify({"error": "Danh sÃ¡ch cÃ´ng ty chÆ°a Ä‘Æ°á»£c táº£i."}), 500
 
     try:
         if symbol in all_companies_df.index:
             company_name = all_companies_df.loc[symbol]['organ_name']
             return jsonify({"fullName": company_name})
         else:
-            return jsonify({"fullName": f"Không tìm thấy tên cho mã {symbol}"})
+            return jsonify({"fullName": f"KhÃ´ng tÃ¬m tháº¥y tÃªn cho mÃ£ {symbol}"})
     except Exception as e:
-        print(f"Lỗi khi tra cứu thông tin cho {symbol}: {e}")
+        print(f"Lá»—i khi tra cá»©u thÃ´ng tin cho {symbol}: {e}")
         return jsonify({"error": str(e)}), 500
 
+
+@app.route('/api/all_companies_union')
+def get_all_companies_union():
+    """Union list of companies from Listing and Screener (if available). Cached 12h."""
+    cache_key = 'all_companies_union'
+    cached = cache.get(cache_key)
+    if cached is not None:
+        return jsonify(cached)
+    if all_companies_df is None:
+        return jsonify({"error": "Danh sách công ty chưa được tải."}), 500
+    try:
+        companies_list = all_companies_df.reset_index()
+        companies_list['exchange'] = companies_list.get('exchange', None)
+        base = companies_list[['symbol', 'organ_name', 'exchange']].to_dict(orient='records')
+        merged = {str(x['symbol']).upper(): x for x in base}
+        # Try enrich with Screener
+        try:
+            from vnstock import Screener
+            df_sc = Screener().stock(params={"exchangeName": "HOSE,HNX,UPCOM"}, limit=3000)
+            if df_sc is not None and not df_sc.empty:
+                cols = [c.lower() for c in df_sc.columns]
+                df_sc.columns = cols
+                for _, row in df_sc.iterrows():
+                    sym = str(row.get('ticker') or row.get('symbol') or '').upper()
+                    if not sym:
+                        continue
+                    organ = row.get('organ_name') or row.get('company')
+                    exch = row.get('exchange') or row.get('exchange_name')
+                    it = merged.get(sym, {"symbol": sym, "organ_name": organ, "exchange": exch})
+                    if organ and not it.get('organ_name'):
+                        it['organ_name'] = organ
+                    if exch and not it.get('exchange'):
+                        it['exchange'] = exch
+                    merged[sym] = it
+        except Exception:
+            pass
+        result = list(merged.values())
+        cache.set(cache_key, result, ttl=60*60*12)
+        return jsonify(result)
+    except Exception as e:
+        print(f"Lỗi khi xử lý danh sách công ty (union): {e}")
+        return jsonify({"error": str(e)}), 500
 
 @app.route('/api/history')
 def get_history():
@@ -254,12 +297,12 @@ def get_history():
     default_start_date = (datetime.strptime(end_date_str, '%Y-%m-%d') - timedelta(days=365*5)).strftime('%Y-%m-%d')
     start_date_str = request.args.get('from', default_start_date)
 
-    print(f"Đang lấy dữ liệu cho {symbol} từ {start_date_str} đến {end_date_str}...")
+    print(f"Äang láº¥y dá»¯ liá»‡u cho {symbol} tá»« {start_date_str} Ä‘áº¿n {end_date_str}...")
 
     cache_key = f"history_{symbol}_{resolution}_{start_date_str}_{end_date_str}"
     cached = cache.get(cache_key)
     if cached is not None:
-        print(f"Sử dụng dữ liệu cache cho {symbol}.")
+        print(f"Sá»­ dá»¥ng dá»¯ liá»‡u cache cho {symbol}.")
         return jsonify(cached)
 
     try:
@@ -267,7 +310,7 @@ def get_history():
         df = quote_requester.history(start=start_date_str, end=end_date_str, interval=resolution)
 
         if df.empty:
-            print(f"Không tìm thấy dữ liệu cho mã {symbol}.")
+            print(f"KhÃ´ng tÃ¬m tháº¥y dá»¯ liá»‡u cho mÃ£ {symbol}.")
             return jsonify([])
 
         df.dropna(inplace=True)
@@ -275,81 +318,56 @@ def get_history():
         records = df.to_dict(orient='records')
         cache.set(cache_key, records, ttl=86400)
 
-        print(f"Lấy dữ liệu SẠCH thành công cho {symbol}.")
+        print(f"Láº¥y dá»¯ liá»‡u Sáº CH thÃ nh cÃ´ng cho {symbol}.")
         return jsonify(records)
 
     except Exception as e:
-        print(f"Đã xảy ra lỗi khi lấy dữ liệu cho {symbol}: {e}")
+        print(f"ÄÃ£ xáº£y ra lá»—i khi láº¥y dá»¯ liá»‡u cho {symbol}: {e}")
         return jsonify({"error": str(e)}), 500
 
-# ▼▼▼ THAY ĐỔI TOÀN BỘ HÀM NÀY ▼▼▼
+# â–¼â–¼â–¼ THAY Äá»”I TOÃ€N Bá»˜ HÃ€M NÃ€Y â–¼â–¼â–¼
 @app.route('/api/market_data')
 def get_market_data():
     symbol = request.args.get('symbol', 'VNINDEX').upper()
     if trading_manager is None:
-        return jsonify({"error": "Trading manager chưa được khởi tạo."}), 500
+        return jsonify({"error": "Trading manager chÆ°a Ä‘Æ°á»£c khá»Ÿi táº¡o."}), 500
 
     cache_key = f"market_{symbol}"
     cached = cache.get(cache_key)
     if cached is not None:
-        print(f"Sử dụng dữ liệu thị trường cache cho {symbol}.")
+        print(f"Sá»­ dá»¥ng dá»¯ liá»‡u thá»‹ trÆ°á»ng cache cho {symbol}.")
         return jsonify(cached)
 
-    print(f"Đang lấy dữ liệu thị trường cho {symbol}...")
+    print(f"Äang láº¥y dá»¯ liá»‡u thá»‹ trÆ°á»ng cho {symbol}...")
     try:
         data = trading_manager.price_board([symbol])
         if data.empty:
-            return jsonify({"error": f"Không tìm thấy dữ liệu cho mã {symbol}"}), 404
+            return jsonify({"error": f"KhÃ´ng tÃ¬m tháº¥y dá»¯ liá»‡u cho mÃ£ {symbol}"}), 404
         
-        # === BẮT ĐẦU SỬA LỖI ===
-        # 1. Làm phẳng các cột MultiIndex thành cột đơn
-        # Ví dụ: ('ticker', '') -> 'ticker' và ('price', 'high') -> 'price_high'
+        # === Báº®T Äáº¦U Sá»¬A Lá»–I ===
+        # 1. LÃ m pháº³ng cÃ¡c cá»™t MultiIndex thÃ nh cá»™t Ä‘Æ¡n
+        # VÃ­ dá»¥: ('ticker', '') -> 'ticker' vÃ  ('price', 'high') -> 'price_high'
         if isinstance(data.columns, pd.MultiIndex):
             data.columns = ['_'.join(filter(None, col)).strip() for col in data.columns.values]
 
-        # 2. Chuyển index (mã cổ phiếu) thành một cột thông thường
+        # 2. Chuyá»ƒn index (mÃ£ cá»• phiáº¿u) thÃ nh má»™t cá»™t thÃ´ng thÆ°á»ng
         data.reset_index(inplace=True)
-        # === KẾT THÚC SỬA LỖI ===
+        # === Káº¾T THÃšC Sá»¬A Lá»–I ===
 
-        # Bây giờ DataFrame đã an toàn để chuyển đổi
+        # BÃ¢y giá» DataFrame Ä‘Ã£ an toÃ n Ä‘á»ƒ chuyá»ƒn Ä‘á»•i
         result = data.to_dict(orient='records')[0]
         cache.set(cache_key, result, ttl=60)
 
-        print(f"Lấy dữ liệu thị trường thành công cho {symbol}.")
+        print(f"Láº¥y dá»¯ liá»‡u thá»‹ trÆ°á»ng thÃ nh cÃ´ng cho {symbol}.")
         return jsonify(result)
 
     except Exception as e:
-        print(f"Lỗi khi lấy dữ liệu thị trường cho {symbol}: {e}")
+        print(f"Lá»—i khi láº¥y dá»¯ liá»‡u thá»‹ trÆ°á»ng cho {symbol}: {e}")
         return jsonify({"error": str(e)}), 500
-# ▲▲▲ KẾT THÚC THAY ĐỔI ▲▲▲
+# â–²â–²â–² Káº¾T THÃšC THAY Äá»”I â–²â–²â–²
 
 
-@app.route('/api/screener')
-def api_screener():
-    try:
-        from vnstock import Screener  # runtime import in case version differs at startup
-    except Exception:
-        Screener = None
-    if Screener is None:
-        return jsonify({"error": "Screener không khả dụng (thiếu vnstock.Screener)."}), 501
-    exchange = request.args.get('exchange', 'HOSE,HNX,UPCOM')
-    limit = int(request.args.get('limit', 500))
-    params = {"exchangeName": exchange}
-    cache_key = f"screener_{exchange}_{limit}"
-    cached = cache.get(cache_key)
-    if cached is not None:
-        return jsonify(cached)
-    try:
-        df = Screener().stock(params=params, limit=limit)
-        if df is None or df.empty:
-            return jsonify([])
-        records = df.to_dict(orient='records')
-        cache.set(cache_key, records, ttl=300)
-        return jsonify(records)
-    except Exception as e:
-        print(f"Lỗi Screener: {e}")
-        return jsonify({"error": str(e)}), 500
-
+# duplicate /api/screener route removed during refactor
 
 
 @app.route('/api/screener')
@@ -365,21 +383,41 @@ def api_screener():
     except Exception:
         Screener = None
     if Screener is None:
-        return jsonify({"error": "Screener kh�ng kh? d?ng (thi?u vnstock.Screener)."}), 501
+        return jsonify({"error": "Screener unavailable (vnstock.Screener missing)."}), 501
 
     exchange = request.args.get('exchange', 'HOSE,HNX,UPCOM')
     limit = int(request.args.get('limit', 500))
+    q = (request.args.get('q') or '').strip()
     params = {"exchangeName": exchange}
 
-    cache_key = f"screener_{exchange}_{limit}"
+    cache_key = f"screener_{exchange}_{limit}_{q}"
     cached = cache.get(cache_key)
     if cached is not None:
         return Response(json.dumps(cached, ensure_ascii=False), mimetype='application/json; charset=utf-8')
 
     try:
-        df = Screener().stock(params=params, limit=limit)
+        # If searching, fetch a larger pool then filter
+        fetch_limit = max(limit, 3000) if q else limit
+        df = Screener().stock(params=params, limit=fetch_limit)
         if df is None or df.empty:
             return jsonify([])
+        # Optional server-side search filter on ticker/name
+        if q:
+            q_upper = q.upper()
+            # standardize column names
+            cols = [c.lower() for c in df.columns]
+            df.columns = cols
+            if 'ticker' in df.columns:
+                mask = df['ticker'].astype(str).str.upper().str.startswith(q_upper)
+            else:
+                mask = None
+            if 'organ_name' in df.columns and len(q_upper) >= 2:
+                name_mask = df['organ_name'].astype(str).str.upper().str.contains(q_upper)
+                mask = name_mask if mask is None else (mask | name_mask)
+            if mask is not None:
+                df = df[mask]
+            # slice back to requested limit
+            df = df.head(limit)
         # 1) drop columns that are completely NaN
         df = df.dropna(axis=1, how='all')
         # 2) replace NaN/inf with None to get strict JSON null
@@ -400,8 +438,10 @@ def api_screener():
         cache.set(cache_key, records, ttl=300)
         return Response(json.dumps(records, ensure_ascii=False), mimetype='application/json; charset=utf-8')
     except Exception as e:
-        print(f"L?i Screener: {e}")
-        return jsonify({"error": str(e)}), 500@app.route('/api/financials')
+        print(f"Lỗi Screener: {e}")
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/api/financials')
 def api_financials():
     symbol = (request.args.get('symbol') or 'FPT').upper()
     ftype = request.args.get('type', 'income')  # income|balance|cashflow
@@ -412,7 +452,7 @@ def api_financials():
     except Exception:
         Finance = None
     if Finance is None:
-        return jsonify({"error": "Finance API không khả dụng trong vnstock hiện tại."}), 501
+        return jsonify({"error": "Finance API khÃ´ng kháº£ dá»¥ng trong vnstock hiá»‡n táº¡i."}), 501
     cache_key = f"financials_{symbol}_{ftype}_{period}_{limit}"
     cached = cache.get(cache_key)
     if cached is not None:
@@ -441,7 +481,7 @@ def api_financials():
         cache.set(cache_key, records, ttl=86400)
         return jsonify(records)
     except Exception as e:
-        print(f"Lỗi Financials cho {symbol}: {e}")
+        print(f"Lá»—i Financials cho {symbol}: {e}")
         return jsonify({"error": str(e)}), 500
 
 
@@ -453,7 +493,7 @@ def api_ratios():
     except Exception:
         Finance = None
     if Finance is None:
-        return jsonify({"error": "Finance API không khả dụng để lấy ratios."}), 501
+        return jsonify({"error": "Finance API khÃ´ng kháº£ dá»¥ng Ä‘á»ƒ láº¥y ratios."}), 501
     cache_key = f"ratios_{symbol}"
     cached = cache.get(cache_key)
     if cached is not None:
@@ -471,7 +511,7 @@ def api_ratios():
         cache.set(cache_key, records, ttl=86400)
         return jsonify(records)
     except Exception as e:
-        print(f"Lỗi Ratios cho {symbol}: {e}")
+        print(f"Lá»—i Ratios cho {symbol}: {e}")
         return jsonify({"error": str(e)}), 500
 
 
@@ -484,7 +524,7 @@ def api_news():
     except Exception:
         News = None
     if News is None:
-        return jsonify({"error": "News API không khả dụng trong vnstock hiện tại."}), 501
+        return jsonify({"error": "News API khÃ´ng kháº£ dá»¥ng trong vnstock hiá»‡n táº¡i."}), 501
     cache_key = f"news_{symbol}_{limit}"
     cached = cache.get(cache_key)
     if cached is not None:
@@ -502,7 +542,7 @@ def api_news():
         cache.set(cache_key, records, ttl=600)
         return jsonify(records)
     except Exception as e:
-        print(f"Lỗi News cho {symbol}: {e}")
+        print(f"Lá»—i News cho {symbol}: {e}")
         return jsonify({"error": str(e)}), 500
 
 
@@ -527,4 +567,6 @@ def run_backtest():
 
 if __name__ == '__main__':
     app.run(debug=True, port=5000)
+
+
 

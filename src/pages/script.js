@@ -542,9 +542,8 @@ function initializeSearch() {
         }
     });
 
-    searchInput.addEventListener('keydown', (e) => {
+    searchInput.addEventListener('keydown', async (e) => {
         const items = suggestionsContainer.querySelectorAll('.suggestion-item');
-        if (suggestionsContainer.style.display === 'none') return;
 
         if (e.key === 'ArrowDown') {
             e.preventDefault();
@@ -556,10 +555,32 @@ function initializeSearch() {
             updateHighlight();
         } else if (e.key === 'Enter') {
             e.preventDefault();
-            if (activeIndex > -1) {
+            if (items.length > 0 && activeIndex > -1) {
                 items[activeIndex].dispatchEvent(new MouseEvent('mousedown'));
             } else if (items.length > 0) {
                 items[0].dispatchEvent(new MouseEvent('mousedown'));
+            } else {
+                // No suggestion visible: attempt direct lookup and load
+                const raw = searchInput.value.trim().toUpperCase();
+                if (raw.length >= 2) {
+                    try {
+                        const info = await (dataProvider.lookupCompany ? dataProvider.lookupCompany(raw) : null);
+                        currentSymbol = raw;
+                        const activeTimeframe = document.querySelector('.timeframe-button.active').textContent;
+                        initialLoad(currentSymbol, activeTimeframe);
+                        if (info && info.organ_name) {
+                            document.getElementById('symbol-description').textContent = info.organ_name;
+                        }
+                        searchInput.value = '';
+                        suggestionsContainer.style.display = 'none';
+                        searchInput.blur();
+                    } catch (err) {
+                        // fallback: still try to load the raw symbol
+                        currentSymbol = raw;
+                        const activeTimeframe = document.querySelector('.timeframe-button.active').textContent;
+                        initialLoad(currentSymbol, activeTimeframe);
+                    }
+                }
             }
         }
     });
