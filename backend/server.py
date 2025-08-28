@@ -381,8 +381,12 @@ def api_price_board():
          - exchange: comma-separated exchanges (default: HOSE,HNX,UPCOM) used when symbols not provided
          - limit: number of symbols to fetch when using exchange (default: 100)
     """
+    global trading_manager
     if trading_manager is None:
-        return jsonify({"error": "Trading manager chưa được khởi tạo."}), 500
+        try:
+            trading_manager = Trading()
+        except Exception as e:
+            return jsonify({"error": f"Trading manager init failed: {e}"}), 503
 
     symbols_param = request.args.get('symbols', '').strip()
     exchange = request.args.get('exchange', 'HOSE,HNX,UPCOM')
@@ -422,6 +426,30 @@ def api_price_board():
         df = df.reset_index()
         if 'index' in df.columns:
             df.rename(columns={'index': 'ticker'}, inplace=True)
+        # Heuristic normalization: add common fields if available under various names
+        def pick(col_candidates):
+            for c in col_candidates:
+                if c in df.columns:
+                    return c
+            return None
+        ceiling_col = pick(['ceiling', 'price_ceiling', 'tran', 'ceiling_price'])
+        floor_col = pick(['floor', 'price_floor', 'san', 'floor_price'])
+        reference_col = pick(['reference', 'ref', 'reference_price', 'ref_price', 'basic_price'])
+        tick_col = pick(['price_step', 'tick_size', 'step'])
+        rename_map = {}
+        if ceiling_col and ceiling_col != 'ceiling': rename_map[ceiling_col] = 'ceiling'
+        if floor_col and floor_col != 'floor': rename_map[floor_col] = 'floor'
+        if reference_col and reference_col != 'reference': rename_map[reference_col] = 'reference'
+        if tick_col and tick_col != 'tick_size': rename_map[tick_col] = 'tick_size'
+        if rename_map:
+            df = df.rename(columns=rename_map)
+        # Attach exchange if available from all_companies_df
+        if 'exchange' not in df.columns and all_companies_df is not None:
+            try:
+                exch_map = all_companies_df['exchange'].to_dict()
+                df['exchange'] = df['ticker'].map(lambda s: exch_map.get(str(s).upper()))
+            except Exception:
+                pass
         records = df.to_dict(orient='records')
         cache.set(cache_key, records, ttl=10)  # short-lived cache
         return jsonify(records)

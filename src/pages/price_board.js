@@ -83,9 +83,19 @@
       const data = await res.json();
       lastData = Array.isArray(data) ? data : [];
       if (lastData.length === 0) { thead.innerHTML=''; tbody.innerHTML=''; return; }
-      // Derive headers, placing ticker first if present
-      const keys = Object.keys(lastData[0]);
-      const headers = [...keys.filter(k => /^(ticker|symbol)$/i.test(k)), ...keys.filter(k => !/^(ticker|symbol)$/i.test(k))];
+      // Prefer common fields first, then union of keys
+      const preferred = [
+        'ticker','symbol','organ_name','exchange',
+        'reference','ceiling','floor',
+        'open','high','low','close',
+        'change','change_pct','pct_change','tick_size',
+        'bid_price_3','bid_price_2','bid_price_1','ask_price_1','ask_price_2','ask_price_3',
+        'bid_volume_3','bid_volume_2','bid_volume_1','ask_volume_1','ask_volume_2','ask_volume_3'
+      ];
+      const union = new Set();
+      lastData.forEach(r => Object.keys(r).forEach(k => union.add(k)));
+      const rest = [...union].filter(k => !preferred.includes(k));
+      const headers = preferred.filter(k => union.has(k)).concat(rest);
       const filtered = filterRows(lastData, searchInput.value);
       render(headers, filtered);
     } catch (e) {
@@ -120,4 +130,3 @@
   document.addEventListener('DOMContentLoaded', () => { loadBoard(); setTimer(); });
   if (document.readyState !== 'loading') { loadBoard(); setTimer(); }
 })();
-
