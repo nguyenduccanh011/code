@@ -353,8 +353,8 @@ def api_screener():
 @app.route('/api/financials')
 def api_financials():
     symbol = (request.args.get('symbol') or 'FPT').upper()
-    ftype = request.args.get('type', 'income')
-    period = request.args.get('period', 'quarter')
+    ftype = request.args.get('type', 'income')  # income|balance|cashflow
+    period = request.args.get('period', 'quarter')  # not used by current vnstock Finance; kept for compat
     limit = int(request.args.get('limit', 8))
     try:
         from vnstock import Finance
@@ -369,12 +369,23 @@ def api_financials():
     try:
         fin = Finance(symbol)
         df = None
-        if hasattr(fin, 'financials'):
+        # Map types to available methods in vnstock 3.2.3
+        if ftype in ('income', 'income_statement') and hasattr(fin, 'income_statement'):
+            df = fin.income_statement()
+        elif ftype in ('balance', 'balance_sheet') and hasattr(fin, 'balance_sheet'):
+            df = fin.balance_sheet()
+        elif ftype in ('cashflow', 'cashflow_statement') and hasattr(fin, 'cashflow_statement'):
+            df = fin.cashflow_statement()
+        # Fallback to generic methods if exist
+        if df is None and hasattr(fin, 'financials'):
             df = fin.financials(statement=ftype, period=period, limit=limit)
-        elif hasattr(fin, 'statement'):
+        if df is None and hasattr(fin, 'statement'):
             df = fin.statement(kind=ftype, period=period, limit=limit)
         if df is None or (hasattr(df, 'empty') and df.empty):
             return jsonify([])
+        # Limit rows if requested
+        if hasattr(df, 'tail'):
+            df = df.tail(limit)
         records = df.to_dict(orient='records') if hasattr(df, 'to_dict') else df
         cache.set(cache_key, records, ttl=86400)
         return jsonify(records)
