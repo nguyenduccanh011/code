@@ -323,6 +323,127 @@ def get_market_data():
 # ▲▲▲ KẾT THÚC THAY ĐỔI ▲▲▲
 
 
+@app.route('/api/screener')
+def api_screener():
+    try:
+        from vnstock import Screener  # runtime import in case version differs at startup
+    except Exception:
+        Screener = None
+    if Screener is None:
+        return jsonify({"error": "Screener không khả dụng (thiếu vnstock.Screener)."}), 501
+    exchange = request.args.get('exchange', 'HOSE,HNX,UPCOM')
+    limit = int(request.args.get('limit', 500))
+    params = {"exchangeName": exchange}
+    cache_key = f"screener_{exchange}_{limit}"
+    cached = cache.get(cache_key)
+    if cached is not None:
+        return jsonify(cached)
+    try:
+        df = Screener().stock(params=params, limit=limit)
+        if df is None or df.empty:
+            return jsonify([])
+        records = df.to_dict(orient='records')
+        cache.set(cache_key, records, ttl=300)
+        return jsonify(records)
+    except Exception as e:
+        print(f"Lỗi Screener: {e}")
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route('/api/financials')
+def api_financials():
+    symbol = (request.args.get('symbol') or 'FPT').upper()
+    ftype = request.args.get('type', 'income')
+    period = request.args.get('period', 'quarter')
+    limit = int(request.args.get('limit', 8))
+    try:
+        from vnstock import Finance
+    except Exception:
+        Finance = None
+    if Finance is None:
+        return jsonify({"error": "Finance API không khả dụng trong vnstock hiện tại."}), 501
+    cache_key = f"financials_{symbol}_{ftype}_{period}_{limit}"
+    cached = cache.get(cache_key)
+    if cached is not None:
+        return jsonify(cached)
+    try:
+        fin = Finance(symbol)
+        df = None
+        if hasattr(fin, 'financials'):
+            df = fin.financials(statement=ftype, period=period, limit=limit)
+        elif hasattr(fin, 'statement'):
+            df = fin.statement(kind=ftype, period=period, limit=limit)
+        if df is None or (hasattr(df, 'empty') and df.empty):
+            return jsonify([])
+        records = df.to_dict(orient='records') if hasattr(df, 'to_dict') else df
+        cache.set(cache_key, records, ttl=86400)
+        return jsonify(records)
+    except Exception as e:
+        print(f"Lỗi Financials cho {symbol}: {e}")
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route('/api/ratios')
+def api_ratios():
+    symbol = (request.args.get('symbol') or 'FPT').upper()
+    try:
+        from vnstock import Finance
+    except Exception:
+        Finance = None
+    if Finance is None:
+        return jsonify({"error": "Finance API không khả dụng để lấy ratios."}), 501
+    cache_key = f"ratios_{symbol}"
+    cached = cache.get(cache_key)
+    if cached is not None:
+        return jsonify(cached)
+    try:
+        fin = Finance(symbol)
+        df = None
+        if hasattr(fin, 'ratios'):
+            df = fin.ratios()
+        elif hasattr(fin, 'ratio'):
+            df = fin.ratio()
+        if df is None or (hasattr(df, 'empty') and df.empty):
+            return jsonify([])
+        records = df.to_dict(orient='records') if hasattr(df, 'to_dict') else df
+        cache.set(cache_key, records, ttl=86400)
+        return jsonify(records)
+    except Exception as e:
+        print(f"Lỗi Ratios cho {symbol}: {e}")
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route('/api/news')
+def api_news():
+    symbol = (request.args.get('symbol') or 'FPT').upper()
+    limit = int(request.args.get('limit', 20))
+    try:
+        from vnstock import News
+    except Exception:
+        News = None
+    if News is None:
+        return jsonify({"error": "News API không khả dụng trong vnstock hiện tại."}), 501
+    cache_key = f"news_{symbol}_{limit}"
+    cached = cache.get(cache_key)
+    if cached is not None:
+        return jsonify(cached)
+    try:
+        client = News()
+        df = None
+        if hasattr(client, 'by_symbol'):
+            df = client.by_symbol(symbol=symbol, limit=limit)
+        elif hasattr(client, 'search'):
+            df = client.search(symbol=symbol, limit=limit)
+        if df is None or (hasattr(df, 'empty') and df.empty):
+            return jsonify([])
+        records = df.to_dict(orient='records') if hasattr(df, 'to_dict') else df
+        cache.set(cache_key, records, ttl=600)
+        return jsonify(records)
+    except Exception as e:
+        print(f"Lỗi News cho {symbol}: {e}")
+        return jsonify({"error": str(e)}), 500
+
+
 @app.route('/api/backtest', methods=['POST'])
 def run_backtest():
     data = request.get_json() or {}

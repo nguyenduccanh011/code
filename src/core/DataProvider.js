@@ -60,6 +60,58 @@ class DataProvider {
         }
     }
 
+    // Screener: danh sách cổ phiếu theo tiêu chí cơ bản (đơn giản theo sàn)
+    async runScreener({ exchange = 'HOSE,HNX,UPCOM', limit = 500 } = {}) {
+        const url = `${API_BASE_URL}/api/screener?exchange=${encodeURIComponent(exchange)}&limit=${limit}`;
+        try {
+            const res = await fetch(url);
+            if (!res.ok) throw new Error(`HTTP ${res.status}`);
+            return await res.json();
+        } catch (e) {
+            console.error('Lỗi gọi API screener:', e);
+            return [];
+        }
+    }
+
+    // Financial statements
+    async getFinancials(symbol, { type = 'income', period = 'quarter', limit = 8 } = {}) {
+        const url = `${API_BASE_URL}/api/financials?symbol=${symbol}&type=${type}&period=${period}&limit=${limit}`;
+        try {
+            const res = await fetch(url);
+            if (!res.ok) throw new Error(`HTTP ${res.status}`);
+            return await res.json();
+        } catch (e) {
+            console.error('Lỗi gọi API financials:', e);
+            return [];
+        }
+    }
+
+    // Ratios
+    async getRatios(symbol) {
+        const url = `${API_BASE_URL}/api/ratios?symbol=${symbol}`;
+        try {
+            const res = await fetch(url);
+            if (!res.ok) throw new Error(`HTTP ${res.status}`);
+            return await res.json();
+        } catch (e) {
+            console.error('Lỗi gọi API ratios:', e);
+            return [];
+        }
+    }
+
+    // News
+    async getNews(symbol, limit = 20) {
+        const url = `${API_BASE_URL}/api/news?symbol=${symbol}&limit=${limit}`;
+        try {
+            const res = await fetch(url);
+            if (!res.ok) throw new Error(`HTTP ${res.status}`);
+            return await res.json();
+        } catch (e) {
+            console.error('Lỗi gọi API news:', e);
+            return [];
+        }
+    }
+
     async getCompanyInfo(symbol) {
         console.log(`Yêu cầu thông tin công ty cho ${symbol}...`);
         const url = `${API_BASE_URL}/api/company_info?symbol=${symbol}`;
