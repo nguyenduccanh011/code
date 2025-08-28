@@ -17,10 +17,81 @@
 
   function showLoading(v){ if (loading) loading.style.display = v ? 'flex' : 'none'; }
 
-  function fmt(v){
+  function fmtNumber(v, digits = 2){
     if (v === null || v === undefined || v === '') return '';
-    if (typeof v === 'number') return v.toLocaleString();
-    return v;
+    if (typeof v !== 'number' || Number.isNaN(v)) return String(v);
+    return v.toLocaleString('vi-VN', { maximumFractionDigits: digits });
+  }
+
+  function fmtCompact(v){
+    if (v === null || v === undefined || v === '') return '';
+    if (typeof v !== 'number' || Number.isNaN(v)) return String(v);
+    const abs = Math.abs(v);
+    if (abs >= 1e9) return (v/1e9).toFixed(2).replace(/\.00$/,'') + 'B';
+    if (abs >= 1e6) return (v/1e6).toFixed(2).replace(/\.00$/,'') + 'M';
+    if (abs >= 1e3) return (v/1e3).toFixed(2).replace(/\.00$/,'') + 'K';
+    return fmtNumber(v, 2);
+  }
+
+  function pick(o, arr){ for (const k of arr){ if (o[k] !== undefined && o[k] !== null) return o[k]; } return undefined; }
+
+  function toDisplayRows(raw){
+    return raw.map(r => {
+      const symbol = pick(r, ['symbol','ticker']);
+      const exch = pick(r, ['listing_exchange','exchange']);
+      const name = pick(r, ['listing_organ_name','organ_name','company','organName']);
+      const ref = pick(r, ['reference','match_reference_price','listing_ref_price','reference_price']);
+      const ceil = pick(r, ['ceiling','listing_ceiling','match_ceiling_price','price_ceiling']);
+      const floor = pick(r, ['floor','listing_floor','match_floor_price','price_floor']);
+      const price = pick(r, ['close','match_match_price']);
+      const open = pick(r, ['open','match_open_price']);
+      const high = pick(r, ['high','match_highest']);
+      const low  = pick(r, ['low','match_lowest']);
+      const vol  = pick(r, ['volume','match_accumulated_volume']);
+      const tick = pick(r, ['tick_size','price_step']);
+      // orderbook 1..3
+      function lvl(side, i){
+        const p = pick(r, [
+          `${side}_price_${i}`, `${side}_${i}_price`,
+          `bid_ask_${side}_${i}_price`
+        ]);
+        const v = pick(r, [
+          `${side}_volume_${i}`, `${side}_${i}_volume`,
+          `bid_ask_${side}_${i}_volume`
+        ]);
+        return [p, v];
+      }
+      const [b3,bv3] = lvl('bid',3); const [b2,bv2] = lvl('bid',2); const [b1,bv1] = lvl('bid',1);
+      const [a1,av1] = lvl('ask',1); const [a2,av2] = lvl('ask',2); const [a3,av3] = lvl('ask',3);
+
+      let chg = pick(r, ['change']);
+      if (chg === undefined && price != null && ref != null) chg = price - ref;
+      let chgp = pick(r, ['change_pct','pct_change']);
+      if (chgp === undefined && chg != null && ref) chgp = (chg/ref)*100;
+
+      return {
+        'Mã': symbol,
+        'Sàn': exch,
+        'Tên': name,
+        'TC': ref,
+        'Trần': ceil,
+        'Sàn giá': floor,
+        'Giá': price,
+        '±': chg,
+        '±%': chgp,
+        'KL': vol,
+        'Mở': open,
+        'Cao': high,
+        'Thấp': low,
+        'B3': b3, 'KL3': bv3,
+        'B2': b2, 'KL2': bv2,
+        'B1': b1, 'KL1': bv1,
+        'A1': a1, 'KLA1': av1,
+        'A2': a2, 'KLA2': av2,
+        'A3': a3, 'KLA3': av3,
+        'Bước': tick,
+      };
+    });
   }
 
   function render(headers, rows){
@@ -39,11 +110,16 @@
       headers.forEach(h => {
         const td = document.createElement('td');
         const v = r[h];
-        td.textContent = fmt(v);
-        if (/pct|change/i.test(h) && typeof v === 'number') {
+        // compact format for volumes and big numbers
+        const compactCols = new Set(['KL','KL3','KL2','KL1','KLA1','KLA2','KLA3']);
+        const priceCols = new Set(['Giá','TC','Trần','Sàn giá','Mở','Cao','Thấp','Bước','B1','B2','B3','A1','A2','A3']);
+        if (compactCols.has(h)) td.textContent = fmtCompact(typeof v==='string'?Number(v):v);
+        else if (priceCols.has(h)) td.textContent = fmtNumber(typeof v==='string'?Number(v):v, 2);
+        else td.textContent = fmtNumber(typeof v==='string'?Number(v):v, 2);
+        if (h === '±' || h === '±%') {
           td.className = v > 0 ? 'pos-green' : (v < 0 ? 'neg-red' : '');
         }
-        if (/ticker|symbol|organ|exchange/i.test(h)) td.style.textAlign = 'left';
+        if (h === 'Mã' || h === 'Sàn') td.style.textAlign = 'left';
         tr.appendChild(td);
       });
       tbody.appendChild(tr);
@@ -76,27 +152,22 @@
     const limit = parseInt(limitEl.value, 10) || 100;
     showLoading(true);
     try {
-      // Direct call to backend API to avoid editing DataProvider encoding
       const params = new URLSearchParams({ exchange, limit: String(limit) });
       const res = await fetch(`${window.API_BASE_URL || 'http://127.0.0.1:5000'}/api/price_board?${params.toString()}`);
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const data = await res.json();
+      let data;
+      if (!res.ok) {
+        try { const err = await res.json(); console.error('API error:', err); }
+        catch(_) {}
+        throw new Error(`HTTP ${res.status}`);
+      }
+      data = await res.json();
       lastData = Array.isArray(data) ? data : [];
       if (lastData.length === 0) { thead.innerHTML=''; tbody.innerHTML=''; return; }
-      // Prefer common fields first, then union of keys
-      const preferred = [
-        'ticker','symbol','organ_name','exchange',
-        'reference','ceiling','floor',
-        'open','high','low','close',
-        'change','change_pct','pct_change','tick_size',
-        'bid_price_3','bid_price_2','bid_price_1','ask_price_1','ask_price_2','ask_price_3',
-        'bid_volume_3','bid_volume_2','bid_volume_1','ask_volume_1','ask_volume_2','ask_volume_3'
-      ];
-      const union = new Set();
-      lastData.forEach(r => Object.keys(r).forEach(k => union.add(k)));
-      const rest = [...union].filter(k => !preferred.includes(k));
-      const headers = preferred.filter(k => union.has(k)).concat(rest);
-      const filtered = filterRows(lastData, searchInput.value);
+      // Transform to compact board rows
+      const displayRows = toDisplayRows(lastData);
+      const headers = ['Mã','Tên','Sàn','TC','Trần','Sàn giá','Giá','±','±%','KL','Mở','Cao','Thấp','B3','KL3','B2','KL2','B1','KL1','A1','KLA1','A2','KLA2','A3','KLA3','Bước'];
+      const filtered = filterRows(displayRows.map(r => ({...r, ticker: r['Mã'], symbol: r['Mã'], organ_name: r['Tên'] || ''})), searchInput.value)
+        .map(r => r); // keep structure
       render(headers, filtered);
     } catch (e) {
       console.error('Price board error:', e);

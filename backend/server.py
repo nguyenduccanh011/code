@@ -8,6 +8,7 @@ from datetime import datetime, timedelta
 import numpy as np
 import pandas as pd  # <-- THÃŠM DÃ’NG NÃ€Y
 import json
+import re
 import time
 from pathlib import Path
 
@@ -397,35 +398,84 @@ def api_price_board():
         symbols = [s.strip().upper() for s in symbols_param.split(',') if s.strip()]
     else:
         symbols = []
-        if all_companies_df is None:
-            return jsonify({"error": "Danh sách công ty chưa được tải."}), 500
+        # Prefer Screener to fetch tickers by exchange; fallback to Listing table
         try:
-            df = all_companies_df.reset_index()
-            if 'exchange' in df.columns and exchange:
-                wanted = set([x.strip().upper() for x in exchange.split(',') if x.strip()])
-                df = df[df['exchange'].astype(str).str.upper().isin(wanted)]
-            symbols = [str(x).upper() for x in df['symbol'].head(limit).tolist()]
-        except Exception as e:
-            return jsonify({"error": f"Không lấy được danh sách mã: {e}"}), 500
+            from vnstock import Screener
+            sc = Screener()
+            df_sc = sc.stock(params={"exchangeName": exchange}, limit=limit)
+            if df_sc is not None and not df_sc.empty:
+                cols = [c.lower() for c in df_sc.columns]
+                df_sc.columns = cols
+                if 'ticker' in df_sc.columns:
+                    tickers = df_sc['ticker'].dropna().astype(str).str.upper().tolist()
+                    symbols = tickers[:limit]
+        except Exception:
+            pass
+        if not symbols:
+            if all_companies_df is None:
+                return jsonify({"error": "Danh sách công ty chưa được tải."}), 500
+            try:
+                df = all_companies_df.reset_index()
+                if 'exchange' in df.columns and exchange:
+                    wanted = set([x.strip().upper() for x in exchange.split(',') if x.strip()])
+                    df = df[df['exchange'].astype(str).str.upper().isin(wanted)]
+                sym_series = df['symbol'].dropna()
+                symbols = [str(x).upper() for x in sym_series.head(limit).tolist()]
+            except Exception as e:
+                return jsonify({"error": f"Không lấy được danh sách mã: {e}"}), 500
+
+        # Final sanitization: keep only valid ticker-like strings
+        symbols = [s for s in symbols if isinstance(s, str) and s and s != 'NAN' and re.match(r'^[A-Z0-9]+$', s)]
 
     if not symbols:
         return jsonify([])
 
-    cache_key = f"price_board_{','.join(symbols)}"
+    # Use a safe cache key from sanitized symbols
+    cache_key = f"price_board_{','.join(symbols[:50])}"
     cached = cache.get(cache_key)
     if cached is not None:
         return jsonify(cached)
 
     try:
-        df = trading_manager.price_board(symbols)
+        try:
+            df = trading_manager.price_board(symbols)
+        except Exception as e:
+            # Fallback: fetch per-symbol to avoid upstream batch errors
+            frames = []
+            for s in symbols:
+                try:
+                    f = trading_manager.price_board([s])
+                    if f is not None and not f.empty:
+                        frames.append(f)
+                except Exception:
+                    continue
+            if frames:
+                import pandas as _pd
+                df = _pd.concat(frames)
+            else:
+                raise e
         if df is None or df.empty:
             return jsonify([])
-        # Flatten multi-index columns if present
+        # Flatten multi-index columns if present (coerce non-strings safely)
         if isinstance(df.columns, pd.MultiIndex):
-            df.columns = ['_'.join(filter(None, col)).strip() for col in df.columns.values]
+            new_cols = []
+            for col in df.columns.values:
+                parts = [p for p in col if p is not None and p != '']
+                parts = [str(p) for p in parts]
+                new_cols.append('_'.join(parts).strip())
+            df.columns = new_cols
+        else:
+            # Ensure single-level columns are strings
+            df.columns = [str(c) for c in df.columns]
         df = df.reset_index()
-        if 'index' in df.columns:
-            df.rename(columns={'index': 'ticker'}, inplace=True)
+        # Normalize symbol column
+        if 'index' in df.columns and 'symbol' not in df.columns:
+            df.rename(columns={'index': 'symbol'}, inplace=True)
+        if 'symbol' not in df.columns:
+            for cand in ['listing_symbol', 'ticker', 'listing_mapping_symbol']:
+                if cand in df.columns:
+                    df['symbol'] = df[cand]
+                    break
         # Heuristic normalization: add common fields if available under various names
         def pick(col_candidates):
             for c in col_candidates:
@@ -450,11 +500,16 @@ def api_price_board():
                 df['exchange'] = df['ticker'].map(lambda s: exch_map.get(str(s).upper()))
             except Exception:
                 pass
+        # Strict JSON: replace NaN/inf with None
+        try:
+            df = df.replace({np.nan: None, np.inf: None, -np.inf: None})
+        except Exception:
+            pass
         records = df.to_dict(orient='records')
         cache.set(cache_key, records, ttl=10)  # short-lived cache
-        return jsonify(records)
+        return Response(json.dumps(records, ensure_ascii=False), mimetype='application/json; charset=utf-8')
     except Exception as e:
-        return jsonify({"error": str(e)}), 500
+        return jsonify({"error": str(e), "where": "/api/price_board", "symbols": symbols[:5]}), 500
 
 
 @app.route('/api/screener')
