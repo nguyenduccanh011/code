@@ -7,6 +7,7 @@
   const exportBtn = document.getElementById('pb-export');
   const searchInput = document.getElementById('pb-search');
   const intervalEl = document.getElementById('pb-interval');
+  const themeBtn = document.getElementById('pb-theme-toggle');
   const table = document.getElementById('pb-table');
   const thead = table.querySelector('thead');
   const tbody = table.querySelector('tbody');
@@ -14,6 +15,18 @@
 
   let lastData = [];
   let timer = null;
+
+  // Theme toggle with localStorage persistence
+  function applyTheme(){
+    const t = (localStorage.getItem('theme') || 'light').toLowerCase();
+    document.body.classList.toggle('theme-dark', t === 'dark');
+    if (themeBtn) themeBtn.textContent = t === 'dark' ? 'Light' : 'Dark';
+  }
+  function toggleTheme(){
+    const curr = (localStorage.getItem('theme') || 'light').toLowerCase();
+    localStorage.setItem('theme', curr === 'dark' ? 'light' : 'dark');
+    applyTheme();
+  }
 
   function showLoading(v){ if (loading) loading.style.display = v ? 'flex' : 'none'; }
 
@@ -34,10 +47,20 @@
   }
 
   function pick(o, arr){ for (const k of arr){ if (o[k] !== undefined && o[k] !== null) return o[k]; } return undefined; }
+  function pickSymbol(o){
+    const cands = ['symbol','listing_symbol','listing_mapping_symbol','ticker'];
+    for (const k of cands){
+      if (o[k] === undefined || o[k] === null) continue;
+      const s = String(o[k]).trim().toUpperCase();
+      if (!s || s === '0' || s === 'NAN') continue;
+      if (/^[A-Z0-9]+$/.test(s)) return s;
+    }
+    return '';
+  }
 
-  function toDisplayRows(raw){
+function toDisplayRows(raw){
     return raw.map(r => {
-      const symbol = pick(r, ['symbol','ticker']);
+      const symbol = pickSymbol(r);
       const exch = pick(r, ['listing_exchange','exchange']);
       const name = pick(r, ['listing_organ_name','organ_name','company','organName']);
       const ref = pick(r, ['reference','match_reference_price','listing_ref_price','reference_price']);
@@ -68,6 +91,8 @@
       if (chg === undefined && price != null && ref != null) chg = price - ref;
       let chgp = pick(r, ['change_pct','pct_change']);
       if (chgp === undefined && chg != null && ref) chgp = (chg/ref)*100;
+      if (typeof chgp === 'string') chgp = Number(chgp);
+      if (typeof chgp === 'number' && Number.isFinite(chgp)) chgp = Math.round(chgp * 10) / 10;
 
       return {
         'Mã': symbol,
@@ -115,11 +140,11 @@
         const priceCols = new Set(['Giá','TC','Trần','Sàn giá','Mở','Cao','Thấp','Bước','B1','B2','B3','A1','A2','A3']);
         if (compactCols.has(h)) td.textContent = fmtCompact(typeof v==='string'?Number(v):v);
         else if (priceCols.has(h)) td.textContent = fmtNumber(typeof v==='string'?Number(v):v, 2);
-        else td.textContent = fmtNumber(typeof v==='string'?Number(v):v, 2);
+        else td.textContent = v == null ? '' : String(v);
         if (h === '±' || h === '±%') {
           td.className = v > 0 ? 'pos-green' : (v < 0 ? 'neg-red' : '');
         }
-        if (h === 'Mã' || h === 'Sàn') td.style.textAlign = 'left';
+        if (h === 'Mã' || h === 'Tên' || h === 'Sàn') td.style.textAlign = 'left';
         tr.appendChild(td);
       });
       tbody.appendChild(tr);
@@ -198,6 +223,7 @@
   searchInput.addEventListener('input', () => { loadBoard(); });
   intervalEl.addEventListener('change', () => { setTimer(); });
 
-  document.addEventListener('DOMContentLoaded', () => { loadBoard(); setTimer(); });
-  if (document.readyState !== 'loading') { loadBoard(); setTimer(); }
+  if (themeBtn) themeBtn.addEventListener('click', toggleTheme);
+  document.addEventListener('DOMContentLoaded', () => { applyTheme(); loadBoard(); setTimer(); });
+  if (document.readyState !== 'loading') { applyTheme(); loadBoard(); setTimer(); }
 })();
