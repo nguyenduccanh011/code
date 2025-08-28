@@ -373,6 +373,62 @@ def get_market_data():
 # duplicate /api/screener route removed during refactor
 
 
+@app.route('/api/price_board')
+def api_price_board():
+    """Return price board snapshot for a list of symbols or by exchange.
+       Query params:
+         - symbols: comma-separated tickers (takes precedence)
+         - exchange: comma-separated exchanges (default: HOSE,HNX,UPCOM) used when symbols not provided
+         - limit: number of symbols to fetch when using exchange (default: 100)
+    """
+    if trading_manager is None:
+        return jsonify({"error": "Trading manager chưa được khởi tạo."}), 500
+
+    symbols_param = request.args.get('symbols', '').strip()
+    exchange = request.args.get('exchange', 'HOSE,HNX,UPCOM')
+    limit = int(request.args.get('limit', 100))
+
+    # Resolve symbols list
+    if symbols_param:
+        symbols = [s.strip().upper() for s in symbols_param.split(',') if s.strip()]
+    else:
+        symbols = []
+        if all_companies_df is None:
+            return jsonify({"error": "Danh sách công ty chưa được tải."}), 500
+        try:
+            df = all_companies_df.reset_index()
+            if 'exchange' in df.columns and exchange:
+                wanted = set([x.strip().upper() for x in exchange.split(',') if x.strip()])
+                df = df[df['exchange'].astype(str).str.upper().isin(wanted)]
+            symbols = [str(x).upper() for x in df['symbol'].head(limit).tolist()]
+        except Exception as e:
+            return jsonify({"error": f"Không lấy được danh sách mã: {e}"}), 500
+
+    if not symbols:
+        return jsonify([])
+
+    cache_key = f"price_board_{','.join(symbols)}"
+    cached = cache.get(cache_key)
+    if cached is not None:
+        return jsonify(cached)
+
+    try:
+        df = trading_manager.price_board(symbols)
+        if df is None or df.empty:
+            return jsonify([])
+        # Flatten multi-index columns if present
+        if isinstance(df.columns, pd.MultiIndex):
+            df.columns = ['_'.join(filter(None, col)).strip() for col in df.columns.values]
+        df = df.reset_index()
+        if 'index' in df.columns:
+            df.rename(columns={'index': 'ticker'}, inplace=True)
+        records = df.to_dict(orient='records')
+        cache.set(cache_key, records, ttl=10)  # short-lived cache
+        return jsonify(records)
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
 @app.route('/api/screener')
 def api_screener():
     """Screener proxy with cleaned JSON (NaN->null, rounded numbers).
