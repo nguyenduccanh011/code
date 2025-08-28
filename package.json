@@ -2,7 +2,10 @@
   "name": "algo-dashboard",
   "version": "1.0.0",
   "description": "Algorithm dashboard project",
+  "type": "module",
   "scripts": {
-    "test": "echo \"No tests specified\""
+    "test": "npm run test:js && npm run test:py",
+    "test:js": "node tests/run-js-tests.mjs",
+    "test:py": "python -m unittest discover -s backend/tests -p 'test_*.py'"
   }
 }

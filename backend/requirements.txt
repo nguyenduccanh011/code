@@ -1,0 +1,5 @@
+flask>=2.2
+flask-cors>=4.0
+vnstock
+numpy>=1.24
+pandas>=2.0

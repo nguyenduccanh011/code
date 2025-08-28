@@ -91,3 +91,4 @@ class ATRIndicator {
     }
 }
 
+export { ATRIndicator };
