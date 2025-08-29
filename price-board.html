@@ -80,7 +80,13 @@
   .sc-table tbody tr:nth-child(odd) { background: #fafafa; }
   body.theme-dark .sc-table th, body.theme-dark .sc-table td { border-color:#2b3846; }
   body.theme-dark .sc-table tbody tr:nth-child(odd) { background: #1a222c; }
-  .sc-table th:first-child, .sc-table td:first-child { text-align:left; position:sticky; left:0; background:inherit; }
+  /* Sticky first column with solid background */
+  .sc-table th:first-child, .sc-table td:first-child { text-align:left; position:sticky; left:0; z-index:3; }
+  .sc-table td:first-child { background:#fff; }
+  .sc-table thead th { position:sticky; top:0; background:#fff; z-index:2; }
+  body.theme-dark .sc-table td:first-child, body.theme-dark .sc-table thead th:first-child { background:#1b232d; }
+  body.theme-dark .sc-table thead th { background:#1b232d; }
+
   /* Compact widths for price board */
   #pb-table th:nth-child(1), #pb-table td:nth-child(1) { width: 60px; }
   #pb-table th:nth-child(2), #pb-table td:nth-child(2) { width: 240px; text-align:left; overflow:hidden; text-overflow:ellipsis; }

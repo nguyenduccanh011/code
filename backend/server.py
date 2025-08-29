@@ -468,14 +468,22 @@ def api_price_board():
             # Ensure single-level columns are strings
             df.columns = [str(c) for c in df.columns]
         df = df.reset_index()
-        # Normalize symbol column
-        if 'index' in df.columns and 'symbol' not in df.columns:
-            df.rename(columns={'index': 'symbol'}, inplace=True)
+        # Normalize symbol column: prefer listing_symbol/ticker before using numeric index
         if 'symbol' not in df.columns:
             for cand in ['listing_symbol', 'ticker', 'listing_mapping_symbol']:
                 if cand in df.columns:
                     df['symbol'] = df[cand]
                     break
+        # If still missing, fallback to index only then
+        if 'symbol' not in df.columns and 'index' in df.columns:
+            df.rename(columns={'index': 'symbol'}, inplace=True)
+        # Uppercase symbols when possible and drop invalid (numeric-only or empty)
+        try:
+            df['symbol'] = df['symbol'].astype(str).str.upper()
+            mask_valid = df['symbol'].str.match(r'^(?=.*[A-Z])[A-Z0-9]+$')
+            df = df[mask_valid]
+        except Exception:
+            pass
         # Heuristic normalization: add common fields if available under various names
         def pick(col_candidates):
             for c in col_candidates:

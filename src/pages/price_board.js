@@ -53,7 +53,8 @@
       if (o[k] === undefined || o[k] === null) continue;
       const s = String(o[k]).trim().toUpperCase();
       if (!s || s === '0' || s === 'NAN') continue;
-      if (/^[A-Z0-9]+$/.test(s)) return s;
+      // require at least one letter to avoid pure row-index numbers
+      if (/^(?=.*[A-Z])[A-Z0-9]+$/.test(s)) return s;
     }
     return '';
   }
