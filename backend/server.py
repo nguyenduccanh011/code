@@ -787,6 +787,24 @@ def api_industry_list():
             industries_df = tmp
     except Exception:
         pass
+    def _has_letter(s: str) -> bool:
+        return any(('A' <= ch <= 'Z') or ('a' <= ch <= 'z') or ('À' <= ch <= 'ỹ') for ch in s)
+
+    def _clean(arr):
+        cleaned = []
+        for s in arr:
+            if not s:
+                continue
+            st = str(s).strip()
+            if not st or st.upper() == 'NAN':
+                continue
+            # Loại các mã/nhãn thuần số (ví dụ icb_code4 như 9000, 9530...)
+            if not _has_letter(st):
+                continue
+            cleaned.append(st)
+        # unique + sort
+        return sorted({x for x in cleaned})
+
     out = []
     try:
         if industries_df is not None:
@@ -796,7 +814,7 @@ def api_industry_list():
                 if c in cols_map:
                     real = cols_map[c]
                     ser = industries_df[real].dropna().astype(str)
-                    out = [s for s in ser.tolist() if s and s.upper() != 'NAN']
+                    out = _clean(ser.tolist())
                     break
             # Fallback: gom từ mọi cột có chứa từ khóa industry/sector/icb
             if not out:
@@ -808,7 +826,7 @@ def api_industry_list():
                         vals.extend(ser)
                     except Exception:
                         continue
-                out = [s for s in vals if s and s.upper() != 'NAN']
+                out = _clean(vals)
     except Exception:
         out = []
     # As a last resort, thử lôi từ all_companies_df nếu có
@@ -822,7 +840,7 @@ def api_industry_list():
                     vals.extend(ser)
                 except Exception:
                     continue
-            out = [s for s in vals if s and s.upper() != 'NAN']
+            out = _clean(vals)
         except Exception:
             pass
     out = sorted({s for s in out})

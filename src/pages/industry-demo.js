@@ -124,6 +124,7 @@
   }
 
   btnLoad.addEventListener('click', loadStocks);
+  sel.addEventListener('change', loadStocks);
   btnLast.addEventListener('click', loadLastest);
   kwEl.addEventListener('input', render);
 
