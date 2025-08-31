@@ -1,5 +1,9 @@
+#############################################
+# Clean, deduplicated ignore rules for repo #
+#############################################
+
 # Logs
-logs
+logs/
 *.log
 npm-debug.log*
 yarn-debug.log*
@@ -7,19 +11,15 @@ yarn-error.log*
 pnpm-debug.log*
 *.tsbuildinfo
 
-# Dependencies
+# Node dependencies and build output
 node_modules/
-
-# Build artifacts
 dist/
 build/
 out/
 coverage/
 
-# Caches (frontend)
+# Frontend caches
 .cache/
-cache/
-catch/
 .parcel-cache/
 .vite/
 .rollup.cache
@@ -31,7 +31,7 @@ catch/
 .vercel/
 .svelte-kit/
 
-# Python caches
+# Python
 __pycache__/
 *.py[cod]
 *.pyo
@@ -49,7 +49,17 @@ venv/
 .DS_Store
 Thumbs.db
 
-# IDE
+# IDEs
 .vscode/
 .idea/
 
+# Project-specific noise
+*.dump
+*.dump.txt
+tmp_*.py
+*.ipynb
+*.xlsm
+*.zip
+backend/xlsm/
+backend/cache/
+cache/

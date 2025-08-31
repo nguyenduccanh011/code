@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Danh bạ Công ty (VNDirect)</title>
+  <link rel="stylesheet" href="css/company-directory.css" />
+  <script>
+    window.API_PROXY_BASE = localStorage.getItem('API_PROXY_BASE') || 'http://127.0.0.1:5050';
+  </script>
+</head>
+<body>
+  <header class="cd-header">
+    <div class="cd-brand">
+      <div class="logo">CK</div>
+      <div class="title">Danh bạ Công ty</div>
+    </div>
+    <div class="cd-controls">
+      <input id="cd-search" class="search" placeholder="Tìm mã / tên công ty..." />
+      <select id="cd-exchange">
+        <option value="">Tất cả sàn</option>
+        <option value="HOSE">HOSE</option>
+        <option value="HNX">HNX</option>
+        <option value="UPCOM">UPCOM</option>
+      </select>
+      <select id="cd-industry">
+        <option value="">Ngành (tất cả)</option>
+      </select>
+      <button id="cd-refresh" class="btn">Tải lại</button>
+      <div class="spacer"></div>
+      <div class="note">Nguồn: VNDirect v4/stocks · Tuỳ chọn enrich từ backend `/api/screener` (vnstock)</div>
+  </div>
+  </header>
+
+  <main class="cd-main">
+    <div class="cd-table-wrap">
+      <table class="cd-table">
+        <thead>
+          <tr>
+            <th class="w-s">Mã</th>
+            <th>Tên công ty</th>
+            <th class="w-m">Sàn</th>
+            <th class="w-l">Ngành</th>
+            <th class="w-m">Ngày niêm yết</th>
+            <th class="w-m">Loại</th>
+            <th class="w-m">Trạng thái</th>
+            <th class="w-m">Mã số thuế</th>
+          </tr>
+        </thead>
+        <tbody id="cd-tbody"></tbody>
+      </table>
+      <div id="cd-loading" class="cd-loading" style="display:none;">Đang tải...</div>
+    </div>
+  </main>
+
+  <footer class="cd-footer">
+    <div id="cd-count">0 mục</div>
+  </footer>
+
+  <script src="src/pages/company-directory.js" defer></script>
+</body>
+</html>

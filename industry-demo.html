@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Industry Stocks Demo</title>
+  <link rel="stylesheet" href="style.css" />
+  <style>
+    body { font-family: system-ui, Arial, sans-serif; margin: 16px; background: #0b1020; color: #dfe8ff; }
+    h1 { margin: 0 0 12px; }
+    .controls { display: flex; gap: 8px; align-items: center; margin-bottom: 12px; }
+    select, input, button { padding: 6px 8px; }
+    .row { display: grid; grid-template-columns: 1fr; gap: 16px; }
+    .panel { background: #111735; border: 1px solid #26304f; border-radius: 10px; padding: 12px; }
+    .panel h3 { margin: 0 0 8px; color: #bfe1ff; }
+    table { width: 100%; border-collapse: collapse; }
+    th, td { padding: 6px 8px; border-bottom: 1px solid #232c4a; }
+    th { text-align: left; color: #9fc1ff; background: #0f1630; position: sticky; top: 0; }
+    .scroll { max-height: 540px; overflow: auto; }
+    .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+    .up { color: #4be3a4; }
+    .down { color: #ff7a7a; }
+  </style>
+  <script>
+    window.API_PROXY_BASE = localStorage.getItem('API_PROXY_BASE') || 'http://127.0.0.1:5050';
+  </script>
+  <script defer src="src/pages/industry-demo.js"></script>
+</head>
+<body>
+  <h1>Cổ phiếu theo ngành</h1>
+  <div class="controls">
+    <label>Ngành:</label>
+    <select id="ind-select"><option>(đang tải)</option></select>
+    <input id="kw" placeholder="Lọc mã/tên..." />
+    <button id="btn-load">Tải</button>
+    <button id="btn-lastest">Tải giá hiện tại</button>
+    <div id="sum" style="margin-left:auto; opacity:.8"></div>
+  </div>
+
+  <div class="row">
+    <div class="panel">
+      <h3>Danh sách</h3>
+      <div class="scroll">
+        <table id="tbl">
+          <thead>
+            <tr>
+              <th>Mã</th>
+              <th>Tên</th>
+              <th>Sàn</th>
+              <th class="mono">Giá</th>
+              <th class="mono">±</th>
+              <th class="mono">%</th>
+              <th class="mono">KL</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</body>
+</html>
+

@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>API Demo (VCBS / VNDirect / FPTS)</title>
+  <link rel="stylesheet" href="style.css" />
+  <style>
+    body { font-family: system-ui, Arial, sans-serif; margin: 16px; }
+    h1 { margin-bottom: 8px; }
+    .row { display: flex; gap: 16px; flex-wrap: wrap; }
+    .panel { flex: 1 1 360px; border: 1px solid #ddd; border-radius: 8px; padding: 12px; }
+    .controls { display: flex; gap: 8px; align-items: center; margin-bottom: 8px; }
+    .out { background: #0b1020; color: #bfe1ff; padding: 8px; border-radius: 6px; min-height: 120px; white-space: pre-wrap; overflow: auto; max-height: 360px; }
+    label { font-size: 12px; opacity: 0.8; }
+    input, select, button { padding: 6px 8px; }
+    .note { font-size: 12px; opacity: 0.7; margin-top: 4px; }
+  </style>
+  <script defer src="src/pages/api-demo.js"></script>
+  <script>
+    // Basic config for proxy base (adjust if needed)
+    window.API_PROXY_BASE = localStorage.getItem('API_PROXY_BASE') || 'http://127.0.0.1:5050';
+  </script>
+  </head>
+<body>
+  <h1>API Demo</h1>
+  <p class="note">Chạy proxy: <code>python backend/proxy_server.py</code>. Thay đổi base bằng <code>localStorage.setItem('API_PROXY_BASE', 'http://127.0.0.1:5050')</code>.</p>
+
+  <div class="row">
+    <div class="panel">
+      <h3>VCBS PriceBoard</h3>
+      <div class="controls">
+        <label>Market:</label>
+        <select id="vcbs-market">
+          <option value="-11">HOSE</option>
+          <option value="-12">HNX</option>
+          <option value="-13">UPCOM</option>
+        </select>
+        <button id="btn-vcbs">Tải</button>
+      </div>
+      <div class="out" id="out-vcbs">...</div>
+      <div class="note">Endpoint: VCBS POST <code>/PriceBoard/Acc/amw</code> thông qua proxy.</div>
+    </div>
+
+    <div class="panel">
+      <h3>VNDirect Stocks</h3>
+      <div class="controls">
+        <label>q:</label>
+        <input id="vnd-q" value="type:IFC,ETF,STOCK~status:LISTED"/>
+        <button id="btn-vnd">Tải</button>
+      </div>
+      <div class="out" id="out-vnd">...</div>
+      <div class="note">Endpoint: <code>https://api-finfo.vndirect.com.vn/v4/stocks</code> (GET)</div>
+    </div>
+  </div>
+
+  <div class="row">
+    <div class="panel">
+      <h3>VNDirect Company Profile</h3>
+      <div class="controls">
+        <label>code:</label>
+        <input id="vnd-prof-code" value="VCB"/>
+        <button id="btn-vnd-prof">Tải</button>
+      </div>
+      <div class="out" id="out-vnd-prof">...</div>
+      <div class="note">Endpoint: <code>/api/proxy/vnd/company_profiles?code=VCB</code></div>
+    </div>
+
+    <div class="panel">
+      <h3>VNDirect Ratios Latest</h3>
+      <div class="controls">
+        <label>code:</label>
+        <input id="vnd-ratio-code" value="VCB"/>
+        <label>from:</label>
+        <input id="vnd-ratio-from" value="2022-01-01"/>
+        <button id="btn-vnd-ratio">Tải</button>
+      </div>
+      <div class="out" id="out-vnd-ratio">...</div>
+      <div class="note">Endpoint: <code>/api/proxy/vnd/ratios_latest?code=VCB&from=2022-01-01</code></div>
+    </div>
+  </div>
+
+  <div class="row">
+    <div class="panel">
+      <h3>VNDirect Candles</h3>
+      <div class="controls">
+        <label>symbol:</label>
+        <input id="vnd-cdl-symbol" value="VCB"/>
+        <label>res:</label>
+        <input id="vnd-cdl-res" value="D" style="width:60px"/>
+        <label>from (unix):</label>
+        <input id="vnd-cdl-from" placeholder="auto"/>
+        <label>to (unix):</label>
+        <input id="vnd-cdl-to" placeholder="auto"/>
+        <button id="btn-vnd-cdl">Tải</button>
+      </div>
+      <div class="out" id="out-vnd-cdl">...</div>
+      <div class="note">Endpoint: <code>/api/proxy/vnd/candles?symbol=VCB&resolution=D</code></div>
+    </div>
+
+    <div class="panel">
+      <h3>Vietstock TradingInfo</h3>
+      <div class="controls">
+        <label>symbol:</label>
+        <input id="vs-ti-symbol" value="VCB"/>
+        <button id="btn-vs-ti">Tải</button>
+      </div>
+      <div class="out" id="out-vs-ti">...</div>
+      <div class="note">Endpoint: <code>/api/proxy/vietstock/tradinginfo?symbol=VCB</code></div>
+    </div>
+  </div>
+
+  <div class="row">
+    <div class="panel">
+      <h3>CafeF Realtime</h3>
+      <div class="controls">
+        <label>center:</label>
+        <select id="cafef-center">
+          <option value="1" selected>HSX</option>
+          <option value="2">HNX</option>
+          <option value="9">UPCOM</option>
+        </select>
+        <button id="btn-cafef">Tải</button>
+      </div>
+      <div class="out" id="out-cafef">...</div>
+      <div class="note">Endpoint: <code>/api/proxy/cafef/realtime?center=1|2|9</code></div>
+    </div>
+
+    <div class="panel">
+      <h3>VCBS PriceBoard (Normalized)</h3>
+      <div class="controls">
+        <label>criteriaId:</label>
+        <select id="vcbs-norm-criteria">
+          <option value="-11">HOSE</option>
+          <option value="-12">HNX</option>
+          <option value="-13">UPCOM</option>
+        </select>
+        <button id="btn-vcbs-norm">Tải</button>
+      </div>
+      <div class="out" id="out-vcbs-norm">...</div>
+      <div class="note">Endpoint: <code>/api/proxy/vcbs/priceboard/normalized?criteriaId=...</code></div>
+    </div>
+  </div>
+
+  <div class="row">
+    <div class="panel">
+      <h3>FPTS Company Names</h3>
+      <div class="controls">
+        <button id="btn-fpts">Tải</button>
+      </div>
+      <div class="out" id="out-fpts">...</div>
+      <div class="note">Endpoint: <code>https://liveprice.fpts.com.vn/data.ashx?s=company_name</code> (GET)</div>
+    </div>
+
+    <div class="panel">
+      <h3>Vietstock Stock List</h3>
+      <div class="controls">
+        <label>catID:</label>
+        <input id="vs-cat" value="1"/>
+        <button id="btn-vietstock">Tải</button>
+      </div>
+      <div class="out" id="out-vietstock">...</div>
+      <div class="note">Endpoint: <code>https://finance.vietstock.vn/data/stocklist?catID=1</code> (GET)</div>
+    </div>
+  </div>
+
+  <div class="row">
+    <div class="panel">
+      <h3>FireAnt Quotes</h3>
+      <div class="controls">
+        <label>symbols:</label>
+        <input id="fa-symbols" value="VCB,FPT,SSI"/>
+        <button id="btn-fireant">Tải</button>
+      </div>
+      <div class="out" id="out-fireant">...</div>
+      <div class="note">Endpoint: <code>https://www.fireant.vn/api/Data/Markets/Quotes?symbols=...</code> (GET)</div>
+    </div>
+
+    <div class="panel">
+      <h3>MBS Stock List</h3>
+      <div class="controls">
+        <button id="btn-mbs">Tải</button>
+      </div>
+      <div class="out" id="out-mbs">...</div>
+      <div class="note">Endpoint: <code>https://mktapi1.mbs.com.vn/pbResfulMarkets/category/securities/list</code> (GET)</div>
+    </div>
+  </div>
+
+  <div class="row">
+    <div class="panel">
+      <h3>SSI GraphQL</h3>
+      <div class="controls" style="flex-direction: column; align-items: stretch; gap: 6px;">
+        <textarea id="ssi-query" rows="6" style="width:100%">{\n  marketIndexes {\n    indexCode\n    indexValue\n    change\n    percentChange\n  }\n}</textarea>
+        <button id="btn-ssi">Gửi Query</button>
+      </div>
+      <div class="out" id="out-ssi">...</div>
+      <div class="note">Endpoint: <code>https://iboard.ssi.com.vn/gateway/graphql</code> (POST)</div>
+    </div>
+  </div>
+
+  <div class="row">
+    <div class="panel">
+      <h3>VCBS CCQM (HTML)</h3>
+      <div class="controls">
+        <button id="btn-ccqm">Tải</button>
+      </div>
+      <div class="out" id="out-ccqm">...</div>
+      <div class="note">Endpoint: <code>http://priceboard.vcbs.com.vn/ccqm/</code> (GET)</div>
+    </div>
+
+    <div class="panel">
+      <h3>VCBS Company Profile (HTML)</h3>
+      <div class="controls">
+        <label>stocksymbol:</label>
+        <input id="vcbs-symbol" value="VCB"/>
+        <button id="btn-vcbs-company">Tải</button>
+      </div>
+      <div class="out" id="out-vcbs-company">...</div>
+      <div class="note">Endpoint: <code>https://vcbs.com.vn/vn/Research/Company?stocksymbol=...</code> (POST)</div>
+    </div>
+  </div>
+</body>
+</html>

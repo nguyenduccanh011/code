@@ -1,0 +1,103 @@
+<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Company Profile Demo (TVSI)</title>
+  <link rel="stylesheet" href="style.css" />
+  <style>
+    body { font-family: system-ui, Arial, sans-serif; margin: 16px; background: #0b1020; color: #dfe8ff; }
+    .wrap { max-width: 1280px; margin: 0 auto; }
+    h1 { margin: 0 0 12px; }
+    .controls { display: flex; gap: 8px; align-items: center; margin: 8px 0 16px; }
+    input, button { padding: 6px 10px; }
+    .grid { display: grid; grid-template-columns: 1.2fr 1fr; gap: 16px; }
+    .panel { background: #111735; border: 1px solid #26304f; border-radius: 10px; padding: 12px; }
+    .panel h3 { margin: 0 0 8px; color: #bfe1ff; }
+    .kpi { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+    .kpi .box { background: #0f1630; border: 1px solid #2a3558; padding: 10px; border-radius: 8px; }
+    .kpi .name { font-size: 12px; opacity: .8; }
+    .kpi .val { font-size: 20px; font-weight: 700; color: #4be3a4; }
+    table { width: 100%; border-collapse: collapse; }
+    th, td { padding: 6px 8px; border-bottom: 1px solid #232c4a; }
+    th { text-align: left; color: #9fc1ff; background: #0f1630; position: sticky; top: 0; }
+    .scroll { max-height: 420px; overflow: auto; }
+    .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+  </style>
+  <script defer src="src/pages/company-profile-demo.js"></script>
+  <script>
+    window.API_PROXY_BASE = localStorage.getItem('API_PROXY_BASE') || 'http://127.0.0.1:5050';
+  </script>
+  </head>
+<body>
+  <div class="wrap">
+    <h1>Company Profile Demo (TVSI)</h1>
+    <div class="controls">
+      <label>Mã:</label>
+      <input id="cp-symbol" value="ACB"/>
+      <label>Từ:</label>
+      <input id="cp-from" type="date" />
+      <label>Đến:</label>
+      <input id="cp-to" type="date" />
+      <button id="cp-load">Tải dữ liệu</button>
+    </div>
+
+    <div class="grid">
+      <div class="panel">
+        <h3>Giá hiện tại</h3>
+        <div class="kpi" id="kpi-current"></div>
+      </div>
+      <div class="panel">
+        <h3>Tổng quan</h3>
+        <div class="scroll">
+          <table id="tbl-overview"><tbody></tbody></table>
+        </div>
+      </div>
+    </div>
+
+    <div class="grid" style="margin-top: 16px; grid-template-columns: 1fr 1fr;">
+      <div class="panel">
+        <h3>Lịch sử giá</h3>
+        <div class="scroll">
+          <table id="tbl-price">
+            <thead>
+              <tr>
+                <th>Ngày</th>
+                <th>Giá</th>
+                <th>Thay đổi</th>
+                <th>%</th>
+                <th>Tổng KLGD</th>
+                <th>Tổng GTGD</th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </div>
+      <div class="panel">
+        <h3>Thống kê đặt lệnh</h3>
+        <div class="scroll">
+          <table id="tbl-stat">
+            <thead>
+              <tr>
+                <th>Ngày</th>
+                <th>Giá</th>
+                <th>% Thay đổi</th>
+                <th>Số lệnh mua</th>
+                <th>KL đặt mua</th>
+                <th>KLTB 1 lệnh mua</th>
+                <th>Số lệnh bán</th>
+                <th>KL đặt bán</th>
+                <th>KLTB 1 lệnh bán</th>
+                <th>Chênh lệch</th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+</body>
+</html>
+

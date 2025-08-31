@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>CafeF Realtime (HSX/HNX/UPCOM)</title>
+  <link rel="stylesheet" href="style.css" />
+  <style>
+    body { font-family: system-ui, Arial, sans-serif; margin: 12px; background: #0a0815; color: #dfe6ff; }
+    h1 { margin: 4px 0 10px; font-size: 18px; }
+    .bar { display: flex; gap: 8px; align-items: center; margin-bottom: 10px; }
+    select, button, input[type="checkbox"] { padding: 6px 8px; }
+    .wrap { max-height: 75vh; overflow: auto; border: 1px solid #1a1d31; border-radius: 6px; }
+    table { width: 100%; border-collapse: collapse; }
+    th, td { padding: 6px 8px; border-bottom: 1px solid #23253a; text-align: right; }
+    th { background: #11152b; position: sticky; top: 0; }
+    th:first-child, td:first-child { text-align: left; }
+    .up { color: #3ecf8e; }
+    .down { color: #ff6b6b; }
+    .eq { color: #c3c8d4; }
+    .note { font-size: 12px; opacity: 0.75; margin-top: 6px; }
+  </style>
+  <script>
+    window.API_PROXY_BASE = localStorage.getItem('API_PROXY_BASE') || 'http://127.0.0.1:5050';
+  </script>
+  <script defer src="src/pages/cafef-realtime.js"></script>
+</head>
+<body>
+  <h1>CafeF Realtime</h1>
+  <div class="bar">
+    <label>Sàn:</label>
+    <select id="center">
+      <option value="1">HSX</option>
+      <option value="2">HNX</option>
+      <option value="9">UPCOM</option>
+    </select>
+    <label style="display:flex;align-items:center;gap:6px;">
+      <input type="checkbox" id="autoref"/> Cập nhật liên tục (15s)
+    </label>
+    <button id="reload">Tải dữ liệu</button>
+    <span id="stamp" style="font-size:12px;opacity:.7"></span>
+  </div>
+  <div class="wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>Mã</th>
+          <th>TC</th>
+          <th>Trần</th>
+          <th>Sàn</th>
+          <th>Mở</th>
+          <th>Giá</th>
+          <th>±</th>
+          <th>±%</th>
+          <th>KL</th>
+          <th>GT</th>
+          <th>B1</th>
+          <th>KL1</th>
+          <th>B2</th>
+          <th>KL2</th>
+          <th>A1</th>
+          <th>KL1</th>
+          <th>A2</th>
+          <th>KL2</th>
+          <th>A3</th>
+          <th>KL3</th>
+          <th>BQ</th>
+          <th>Cao</th>
+          <th>Thấp</th>
+          <th>KL giao dịch</th>
+          <th>Ngoại mua</th>
+          <th>Ngoại bán</th>
+          <th>Time</th>
+        </tr>
+      </thead>
+      <tbody id="rows"></tbody>
+    </table>
+  </div>
+  <div class="note">Nguồn: <code>/api/proxy/cafef/realtime?center=1|2|9</code> qua proxy.</div>
+</body>
+</html>
