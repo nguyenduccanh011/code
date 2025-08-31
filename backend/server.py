@@ -879,17 +879,19 @@ def api_industry_stocks():
                 return s.lower().strip()
             target = _norm(name)
             cols = {c.lower(): c for c in industries_df.columns}
+            # Lấy tất cả cột có chứa industry/sector/icb để tăng độ phủ
+            cand_keys = [k for k in cols.keys() if any(t in k for t in ['industry','sector','icb'])]
+            if not cand_keys:
+                cand_keys = list(cols.keys())
             mask = None
-            for c in ['icb_name', 'industry_name', 'industry', 'sector_name']:
-                if c in cols:
-                    real = cols[c]
-                    series = industries_df[real].astype(str)
-                    ser_norm = series.map(_norm)
-                    m = ser_norm == target
-                    # cũng chấp nhận contains nếu target đủ dài
-                    if len(target) > 1:
-                        m = m | ser_norm.str.contains(target, regex=False)
-                    mask = m if mask is None else (mask | m)
+            for c in cand_keys:
+                real = cols[c]
+                series = industries_df[real].astype(str)
+                ser_norm = series.map(_norm)
+                m = ser_norm == target
+                if len(target) > 1:
+                    m = m | ser_norm.str.contains(target, regex=False)
+                mask = m if mask is None else (mask | m)
             if mask is not None and getattr(mask, 'any', lambda: False)():
                 syms = industries_df[mask].index.astype(str).str.upper().tolist()
                 for s in syms:
@@ -936,15 +938,17 @@ def api_industry_lastest():
             return s.lower().strip()
         target = _norm(name)
         cols = {c.lower(): c for c in industries_df.columns}
+        cand_keys = [k for k in cols.keys() if any(t in k for t in ['industry','sector','icb'])]
+        if not cand_keys:
+            cand_keys = list(cols.keys())
         mask = None
-        for c in ['icb_name', 'industry_name', 'industry', 'sector_name']:
-            if c in cols:
-                real = cols[c]
-                ser_norm = industries_df[real].astype(str).map(_norm)
-                m = ser_norm == target
-                if len(target) > 1:
-                    m = m | ser_norm.str.contains(target, regex=False)
-                mask = m if mask is None else (mask | m)
+        for c in cand_keys:
+            real = cols[c]
+            ser_norm = industries_df[real].astype(str).map(_norm)
+            m = ser_norm == target
+            if len(target) > 1:
+                m = m | ser_norm.str.contains(target, regex=False)
+            mask = m if mask is None else (mask | m)
         if mask is None or (not mask.any()):
             return jsonify({"data": out})
         syms = industries_df[mask].index.astype(str).str.upper().tolist()
