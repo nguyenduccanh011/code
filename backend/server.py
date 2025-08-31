@@ -870,14 +870,27 @@ def api_industry_stocks():
     items = []
     try:
         if industries_df is not None:
+            import unicodedata as _ud
+            def _norm(s):
+                try:
+                    s = ''.join(c for c in _ud.normalize('NFKD', str(s)) if not _ud.combining(c))
+                except Exception:
+                    s = str(s)
+                return s.lower().strip()
+            target = _norm(name)
             cols = {c.lower(): c for c in industries_df.columns}
             mask = None
             for c in ['icb_name', 'industry_name', 'industry', 'sector_name']:
                 if c in cols:
                     real = cols[c]
-                    m = industries_df[real].astype(str).str.lower() == name.lower()
+                    series = industries_df[real].astype(str)
+                    ser_norm = series.map(_norm)
+                    m = ser_norm == target
+                    # cũng chấp nhận contains nếu target đủ dài
+                    if len(target) > 1:
+                        m = m | ser_norm.str.contains(target, regex=False)
                     mask = m if mask is None else (mask | m)
-            if mask is not None:
+            if mask is not None and getattr(mask, 'any', lambda: False)():
                 syms = industries_df[mask].index.astype(str).str.upper().tolist()
                 for s in syms:
                     rec = {"code": s}
@@ -914,12 +927,23 @@ def api_industry_lastest():
         if not name or industries_df is None or trading_manager is None:
             return jsonify({"data": out})
         # Collect symbols for industry
+        import unicodedata as _ud
+        def _norm(s):
+            try:
+                s = ''.join(c for c in _ud.normalize('NFKD', str(s)) if not _ud.combining(c))
+            except Exception:
+                s = str(s)
+            return s.lower().strip()
+        target = _norm(name)
         cols = {c.lower(): c for c in industries_df.columns}
         mask = None
         for c in ['icb_name', 'industry_name', 'industry', 'sector_name']:
             if c in cols:
                 real = cols[c]
-                m = industries_df[real].astype(str).str.lower() == name.lower()
+                ser_norm = industries_df[real].astype(str).map(_norm)
+                m = ser_norm == target
+                if len(target) > 1:
+                    m = m | ser_norm.str.contains(target, regex=False)
                 mask = m if mask is None else (mask | m)
         if mask is None or (not mask.any()):
             return jsonify({"data": out})

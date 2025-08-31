@@ -73,7 +73,10 @@
       list = allCache.filter(x => {
         const v = x.industryName || x.industry || x.icbName || x.sectorName || x.industryEnName;
         const vn = norm(v);
-        return vn === indN || vn.includes(indN) || indN.includes(vn);
+        if (!vn) return false;
+        if (vn === indN) return true;
+        // chỉ cho phép chứa khi độ dài > 1 để tránh match rỗng
+        return (vn.length > 1 && (vn.includes(indN) || indN.includes(vn)));
       });
     }
     lastest = {};
