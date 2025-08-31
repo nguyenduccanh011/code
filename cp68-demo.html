@@ -33,27 +33,9 @@
     <h1>CP68 EOD Demo</h1>
     <div class="bar">
       <div class="group">
-        <label>Scope:</label>
-        <select id="scope">
-          <option value="last" selected>last (ngày hiện tại)</option>
-          <option value="all">all (full)</option>
-        </select>
-      </div>
-      <div class="group">
-        <label>Mã (CSV):</label>
-        <input id="symbols" size="28" value="AAA,MWG" />
-      </div>
-      <div class="group">
-        <label>Từ:</label>
-        <input id="from" type="date" />
-        <label>Đến:</label>
-        <input id="to" type="date" />
-      </div>
-      <div class="group">
-        <button id="btn-norm">Normalized → vẽ</button>
-        <button id="btn-build-last">Build dataset (last)</button>
-        <button id="btn-build-all">Build dataset (all)</button>
-        <button id="btn-load-ds">Load từ dataset</button>
+        <label>Mã:</label>
+        <input id="symbol" size="14" value="AAA" />
+        <button id="btn-draw">Vẽ</button>
       </div>
       <div id="log"></div>
     </div>
