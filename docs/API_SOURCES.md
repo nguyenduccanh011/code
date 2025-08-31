@@ -19,11 +19,26 @@ This document consolidates external endpoints and payload formats that were orig
       "tlSymbol": "",
       "pthMktId": ""
     }
+  - CriteriaId: `-11` (HOSE), `-12` (HNX), `-13` (UPCOM)
+  - Các trường thường gặp trong payload trả về (đã chuẩn hóa trong backend):
+    - `listing_symbol`, `listing_exchange`, `listing_ref_price`, `listing_ceiling`, `listing_floor`
+    - `match_match_price`, `match_avg_match_price`, `match_open_price`, `match_accumulated_volume`
+    - `bid_ask_*` (bảng giá mua/bán 10 mức)
 
 - VNDirect Stocks
   - Method: GET
   - URL: `https://api-finfo.vndirect.com.vn/v4/stocks`
   - Query example: `q=type:IFC,ETF,STOCK~status:LISTED&fields=code,companyName,companyNameEng,shortName,floor,industryName,taxCode,listedDate,companyId,type,status&size=3000`
+
+## Proxy Routes (ứng với các nguồn trên)
+
+- VCBS qua proxy: `GET /api/proxy/vcbs/priceboard?criteriaId=-11|-12|-13`
+- VNDirect: `/api/proxy/vnd/...` (company_profiles, ratios_latest, candles, stocks)
+- CafeF: `GET /api/proxy/cafef/realtime?center=1|2|9`
+- Vietstock: `/api/proxy/vietstock/...`
+- FireAnt: `GET /api/proxy/fireant/quotes?symbols=VCB,VPB,...`
+- MBS: `/api/proxy/mbs/stocklist`
+- TVSI: `/api/proxy/tvsi/...`
 
 - FPTS Company Names
   - Method: GET

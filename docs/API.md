@@ -1,44 +1,48 @@
-# Backend API Summary
+# API Tổng Quan (Backend + Proxy)
 
-All endpoints return JSON (UTF‑8). Some endpoints use caching (see `backend/cache_manager.py`).
+Mặc định server hợp nhất chạy trên `http://127.0.0.1:5000` (xem `backend/serve.py`).
+Tất cả API trả về JSON UTF‑8. Một số route có cache (xem `backend/cache_manager.py`).
 
-## Screener
+## Backend (prefix `/api/...`)
 
-- GET `/api/screener?exchange=HOSE,HNX,UPCOM&limit=500&columns=ticker,close,pe,pb,roe,market_cap`
-  - Returns a cleaned list (NaN/±Inf → null, numeric rounded).
-  - Optional `columns` trims payload to selected fields.
+- Screener: `GET /api/screener?exchange=HOSE,HNX,UPCOM&limit=500&q=`
+  - Làm sạch (NaN/Inf → null), hỗ trợ tìm kiếm `q` theo mã/tên; cache theo tham số.
 
-## Financials
+- Lịch sử giá: `GET /api/history?symbol=FPT&resolution=1D&from=YYYY-MM-DD&to=YYYY-MM-DD`
+  - Chuẩn hóa thời gian; cache 1 ngày theo tham số.
 
-- GET `/api/financials?symbol=FPT&type=income|balance|cashflow&period=quarter|year&limit=8`
-  - Mapped for vnstock 3.2.3:
-    - `income` → `Finance.income_statement()`
-    - `balance` → `Finance.balance_sheet()`
-    - `cashflow` → `Finance.cashflow_statement()` (if available)
-  - Applies `tail(limit)` if available.
+- Bảng giá: `GET /api/price_board?symbols=FPT,MWG` hoặc `GET /api/price_board?exchange=HOSE,HNX,UPCOM&limit=100`
+  - Phẳng cột MultiIndex, chuẩn hóa tên cột và mã; cache ngắn 10s.
 
-## Ratios
+- Thị trường đơn lẻ: `GET /api/market_data?symbol=VNINDEX`
+  - Bản ghi đơn từ `Trading.price_board`; cache 60s.
 
-- GET `/api/ratios?symbol=FPT`
-  - Uses `Finance.ratio()` or `Finance.ratios()` depending on vnstock version.
+- Ngành (industry):
+  - `GET /api/industry/list` → `{ industries: [...] }`
+  - `GET /api/industry/stocks?industry=...` → `{ data: [{ code, companyName, floor }, ...] }`
+  - `GET /api/industry/lastest?industry=...` → `{ data: { SYM: { lastPrice, priceChange, priceChangePercent, matchQtty } } }`
+    - Mapping cột linh hoạt (vnstock/VCBS style), batch→per‑symbol fallback, cache 15s.
+    - `debug=1` trả thêm `df_cols`, `df_len`, `sample_keys`, …
 
-## History
+- Financials: `GET /api/financials?symbol=FPT&statement=ratio|balance_sheet|income_statement|cash_flow&period=quarter|year&source=VCI&industry=true`
+  - Có `industry_averages` khi `statement=ratio&industry=true`.
 
-- GET `/api/history?symbol=FPT&resolution=1D&from=YYYY-MM-DD&to=YYYY-MM-DD`
-  - Returns OHLCV with `time` as ISO string; frontend converts to `{year,month,day}`.
+- Ratios: `GET /api/ratios?symbol=FPT`
 
-## Market Data (Quote/Price Board)
+- News: `GET /api/news?symbol=FPT&limit=20` (trả 501 nếu phiên bản vnstock không có)
 
-- GET `/api/market_data?symbol=VNINDEX`
-  - Uses `Trading.price_board` and flattens the dataframe.
+- Listings: `GET /api/all_companies`, `GET /api/company_info?symbol=FPT`
 
-## Company Info / Listings
+## Proxy (prefix `/api/proxy/...`)
 
-- GET `/api/all_companies`
-- GET `/api/company_info?symbol=FPT`
+- VCBS PriceBoard: `GET /api/proxy/vcbs/priceboard?criteriaId=-11|-12|-13`
+- VNDirect: `/api/proxy/vnd/...` (company_profiles, ratios_latest, candles, stocks)
+- CafeF realtime: `GET /api/proxy/cafef/realtime?center=1|2|9`
+- Vietstock: `/api/proxy/vietstock/...`
+- FireAnt quotes: `GET /api/proxy/fireant/quotes?symbols=VCB,VPB,...`
+- MBS stocklist: `GET /api/proxy/mbs/stocklist`
+- TVSI: `/api/proxy/tvsi/...` (overview/lastest/pricehistory/statistic)
 
-## News (when available)
-
-- GET `/api/news?symbol=FPT&limit=20`
-  - Returns 501 if the installed vnstock version doesn’t provide a `News` API.
+Gợi ý: frontend mặc định dùng `API_PROXY_BASE = http://127.0.0.1:5000`. Có thể override tạm thời bằng:
+`localStorage.setItem('API_PROXY_BASE','http://127.0.0.1:5000')`.
 

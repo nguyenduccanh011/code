@@ -11,8 +11,18 @@ Tài liệu này đưa ra hướng dẫn cho các tác nhân làm việc trong k
 ## Quy tắc đóng góp
 - Ưu tiên mã nguồn rõ ràng, dễ đọc và có chú thích khi cần thiết.
 - Đặt tên tệp và hàm bằng tiếng Anh, có thể chú thích tiếng Việt song song.
-- Mỗi thay đổi phải được kiểm tra bằng lệnh `npm test` trước khi commit.
+- Mỗi thay đổi phải được kiểm tra bằng lệnh `npm test` trước khi commit (JS + Python tests).
 - Giữ lịch sử commit rõ ràng, nêu bật tính năng hoặc sửa lỗi đã thực hiện.
+
+## Cách chạy nhanh (dev)
+- Cài đặt Python deps: `pip install -r backend/requirements.txt`
+- Chạy server hợp nhất: `npm run start:combined` (hoặc `python backend/serve.py`)
+- Frontend mặc định dùng `API_PROXY_BASE = http://127.0.0.1:5000`; có thể override bằng localStorage khi cần.
+
+## Ghi chú mới
+- Đã thêm thanh điều hướng dùng chung (site‑nav) cho tất cả trang.
+- Bảng giá dùng nguồn VCBS qua proxy (`/api/proxy/vcbs/priceboard`).
+- Bổ sung nhóm API ngành: `/api/industry/list|stocks|lastest`.
 
 ## Cấu trúc thư mục chính
 - `backend/`: Các đoạn mã xử lý phía server hoặc script hỗ trợ.
