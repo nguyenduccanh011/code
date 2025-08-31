@@ -1016,9 +1016,12 @@ def api_industry_lastest():
                 if c in row and row[c] is not None and not (isinstance(row[c], float) and np.isnan(row[c])):
                     return row[c]
             return None
-        rows = df.to_dict(orient='records')
         dbg_enabled = (request.args.get('debug','0') == '1')
-        dbg = { 'syms': syms[:10], 'frames': len(frames) }
+        dbg = { 'syms': syms[:10], 'frames': len(frames), 'df_len': int(getattr(df, 'shape', [0])[0]) }
+        dbg['df_cols'] = [str(c) for c in list(df.columns)[:40]]
+        rows = df.to_dict(orient='records')
+        if dbg_enabled and rows:
+            dbg['sample_keys'] = list(rows[0].keys())
         # Build case-insensitive key maps to increase robustness
         for idx, r in enumerate(rows):
             # make a lower->actual map
@@ -1106,6 +1109,33 @@ def api_industry_lastest():
                     'keys': list(r.keys())[:25]
                 })
         # short cache to reduce repeated heavy calls
+        # If mapping yields empty but df has obvious columns, try simple fallback
+        if not out and len(df) > 0:
+            sym_col = None
+            for c in ['symbol','ticker']:
+                if c in df.columns:
+                    sym_col = c; break
+            price_col = None
+            for c in ['match_price','price_match','last_price','last','close','price']:
+                if c in df.columns:
+                    price_col = c; break
+            vol_col = None
+            for c in ['match_volume','volume_match','matched_volume','total_volume','volume','qtty','qty']:
+                if c in df.columns:
+                    vol_col = c; break
+            if sym_col is not None:
+                for _, r in df.iterrows():
+                    sym = str(r.get(sym_col) or '').upper().strip()
+                    if not sym:
+                        continue
+                    out[sym] = {
+                        'lastPrice': r.get(price_col) if price_col else None,
+                        'priceChange': None,
+                        'priceChangePercent': None,
+                        'matchQtty': r.get(vol_col) if vol_col else None,
+                    }
+                if dbg_enabled:
+                    dbg['fallback_used'] = True
         try:
             cache.set(cache_key, out, ttl=15)
         except Exception:
