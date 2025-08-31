@@ -1209,21 +1209,11 @@ def api_cp68_eod_normalized():
     if cached is not None and fmt == 'json':
         return Response(json.dumps(cached, ensure_ascii=False), mimetype='application/json; charset=utf-8')
 
-    # Fetch zip via proxy route to avoid CORS and consolidate code
-    try:
-        import requests  # type: ignore
-    except Exception:
-        requests = None
-    url = f"http://127.0.0.1:5000/api/proxy/cp68/eod?scope={t}"
-    try:
-        # If requests not available, return error
-        if requests is None:
-            return jsonify({"error": "requests not available"}), 500
-        resp = requests.get(url, timeout=60)
-        resp.raise_for_status()
-        data = resp.content
-    except Exception as e:
-        return jsonify({"error": f"Download failed: {e}"}), 502
+    # Fetch zip directly from upstream to avoid self-call deadlock
+    insecure = (request.args.get('insecure') or '0') == '1'
+    data, derr = _cp68_download_zip(scope, insecure)
+    if derr:
+        return jsonify({"error": f"Download failed: {derr}"}), 502
 
     try:
         zf = zipfile.ZipFile(io.BytesIO(data))
@@ -1318,15 +1308,21 @@ def api_cp68_eod_normalized():
         cache.set(cache_key, out, ttl=300)
         return Response(json.dumps(out, ensure_ascii=False), mimetype='application/json; charset=utf-8')
 
-def _cp68_download_zip(scope: str):
+def _cp68_download_zip(scope: str, insecure: bool = False):
     try:
         import requests  # type: ignore
     except Exception:
         return None, "requests not available"
     t = 'all' if scope == 'all' else 'last'
-    url = f"http://127.0.0.1:5000/api/proxy/cp68/eod?scope={t}"
+    url = f"https://www.cophieu68.vn/download/_amibroker.php?type={t}"
+    headers = {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        'Accept': '*/*',
+        'Referer': 'https://www.cophieu68.vn/download/ami.php',
+        'Accept-Language': 'vi-VN,vi;q=0.9,en-US;q=0.8,en;q=0.7',
+    }
     try:
-        resp = requests.get(url, timeout=60)
+        resp = requests.get(url, headers=headers, timeout=90, verify=not insecure, allow_redirects=True)
         resp.raise_for_status()
         return resp.content, None
     except Exception as e:
@@ -1371,7 +1367,8 @@ def api_cp68_eod_export():
     if fmt != 'parquet':
         return jsonify({"error": "Only parquet is supported for export"}), 400
 
-    raw, err = _cp68_download_zip(scope)
+    insecure = ((request.values.get('insecure') or request.args.get('insecure') or '0') == '1')
+    raw, err = _cp68_download_zip(scope, insecure)
     if err:
         return jsonify({"error": f"Download failed: {err}"}), 502
     text, perr = _cp68_parse_txt_from_zip(raw)

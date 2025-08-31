@@ -18,7 +18,10 @@ except Exception:
 @app.route('/api/proxy/cp68/eod', methods=['GET'])
 def proxy_cp68_eod():
     """Proxy ZIP EOD from cophieu68.vn
-    Query: scope=all|last (default: last)
+    Query:
+      - scope=all|last (default: last)
+      - insecure=1 (tắt verify SSL nếu môi trường chặn cert)
+      - debug=1 (trả JSON debug thay vì ZIP)
     """
     try:
         import requests  # type: ignore
@@ -28,18 +31,46 @@ def proxy_cp68_eod():
     scope = (request.args.get('scope') or 'last').lower()
     t = 'all' if scope == 'all' else 'last'
     url = f'https://www.cophieu68.vn/download/_amibroker.php?type={t}'
+    insecure = (request.args.get('insecure') or '0') == '1'
+    debug = (request.args.get('debug') or '0') == '1'
+    headers = {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        'Accept': '*/*',
+        'Referer': 'https://www.cophieu68.vn/download/ami.php',
+        'Accept-Language': 'vi-VN,vi;q=0.9,en-US;q=0.8,en;q=0.7',
+    }
     try:
-        headers = {
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-            'Accept': '*/*',
-        }
-        resp = requests.get(url, headers=headers, timeout=60)
-        content = resp.content
+        resp = requests.get(url, headers=headers, timeout=90, verify=not insecure, allow_redirects=True, stream=True)
         status = resp.status_code
-        # Serve as a zip file stream regardless of upstream content-type
-        return Response(content, status=status, content_type='application/zip')
+        content = resp.content if not debug else None
+        if debug:
+            return jsonify({
+                'status': status,
+                'ok': (200 <= status < 300),
+                'url': url,
+                'headers': dict(resp.headers),
+                'length': int(resp.headers.get('Content-Length') or 0),
+                'text_sample': resp.text[:200] if 'text' in (resp.headers.get('Content-Type') or '').lower() else None,
+            }), status
+        # xác định kiểu: nếu bắt đầu bằng 'PK' coi như ZIP
+        ct = resp.headers.get('Content-Type', 'application/zip')
+        data = resp.content
+        if data[:2] != b'PK':
+            # upstream có thể trả text/html hoặc notice
+            ct = 'application/octet-stream'
+        # Gợi ý tên file tải về để trình duyệt không mở inline
+        filename = f"cp68_{t}.zip"
+        return Response(
+            data,
+            status=status,
+            headers={
+                'Content-Type': ct,
+                'Content-Disposition': f'attachment; filename="{filename}"',
+                'Cache-Control': 'no-cache'
+            }
+        )
     except Exception as e:
-        return jsonify({"error": str(e)}), 502
+        return jsonify({"error": str(e), 'url': url}), 502
 
 
 @app.route('/api/proxy/vcbs/priceboard', methods=['GET'])
