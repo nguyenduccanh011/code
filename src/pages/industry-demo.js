@@ -81,6 +81,8 @@
     }
     lastest = {};
     render();
+    // Tự động lấy giá sau khi có danh sách mã
+    try { await loadLastest(); } catch {}
   }
 
   async function loadLastest() {
