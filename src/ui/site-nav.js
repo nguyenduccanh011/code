@@ -1,5 +1,5 @@
 // src/ui/site-nav.js
-// Simple top navigation with dropdown to jump across demo screens.
+// Top navigation with grouped dropdowns. Vietnamese labels fixed.
 (function () {
   const PAGES = [
     { group: 'Tổng quan', items: [
@@ -11,6 +11,7 @@
       { label: 'FireAnt Quotes', href: 'fireant-quotes.html' },
       { label: 'Screener', href: 'screener.html' },
       { label: 'Industry Demo', href: 'industry-demo.html' },
+      { label: 'CP68 EOD Demo', href: 'cp68-demo.html' },
     ]},
     { group: 'Công ty', items: [
       { label: 'Hồ sơ công ty', href: 'company-profile.html' },
@@ -25,7 +26,6 @@
   ];
 
   const cssHref = 'css/site-nav.css';
-  // Ensure CSS loaded once
   if (!document.querySelector('link[href="' + cssHref + '"]')) {
     const link = document.createElement('link');
     link.rel = 'stylesheet';
@@ -34,9 +34,8 @@
   }
 
   function currentPath() {
-    try {
-      return location.pathname.split('/').pop() || 'index.html';
-    } catch { return ''; }
+    try { return location.pathname.split('/').pop() || 'index.html'; }
+    catch { return 'index.html'; }
   }
 
   function buildNav() {
@@ -54,7 +53,6 @@
     const center = document.createElement('div');
     center.className = 'site-nav-center';
 
-    // Build dropdowns per group
     const curr = currentPath();
     for (const section of PAGES) {
       const wrap = document.createElement('div');
@@ -74,7 +72,6 @@
       }
       wrap.appendChild(btn);
       wrap.appendChild(dd);
-      // Toggle behavior
       btn.addEventListener('click', () => {
         const open = wrap.classList.contains('open');
         document.querySelectorAll('.menu-group.open').forEach(el => el.classList.remove('open'));
@@ -99,17 +96,14 @@
     nav.appendChild(center);
     nav.appendChild(right);
 
-    // Insert at top
     document.body.insertBefore(nav, document.body.firstChild);
 
-    // Close when clicking outside
     document.addEventListener('click', (e) => {
       const isInside = e.composedPath().some(el => el && el.classList && el.classList.contains('menu-group'));
       if (!isInside) document.querySelectorAll('.menu-group.open').forEach(el => el.classList.remove('open'));
     });
   }
 
-  // Apply saved theme
   (function applyTheme() {
     try {
       const t = (localStorage.getItem('theme') || '').toLowerCase();
