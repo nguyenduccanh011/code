@@ -1435,8 +1435,13 @@ def api_cp68_eod_export():
             try:
                 df.to_parquet(out_file, index=False)
             except Exception as e:
-                errors[str(sym)] = f"Parquet write error (need pyarrow/fastparquet?): {e}"
-                continue
+                # Fallback to CSV if parquet not available
+                try:
+                    df.to_csv(out_dir / 'D.csv', index=False)
+                    errors[str(sym)] = f"parquet failed, wrote CSV instead: {e}"
+                except Exception as e2:
+                    errors[str(sym)] = f"write failed: parquet error {e}; csv error {e2}"
+                    continue
             written += 1
         except Exception as e:
             errors[str(sym)] = str(e)
@@ -1454,7 +1459,7 @@ def api_dataset_symbols():
         return jsonify({"symbols": []})
     syms = []
     for child in p.iterdir():
-        if child.is_dir() and (child / 'D.parquet').exists():
+        if child.is_dir() and ((child / 'D.parquet').exists() or (child / 'D.csv').exists()):
             syms.append(child.name)
     syms.sort()
     return jsonify({"symbols": syms, "base": base})
@@ -1469,14 +1474,18 @@ def api_dataset_candles():
     if not symbol:
         return jsonify({"error": "symbol is required"}), 400
     base = request.args.get('base') or str(Path(__file__).resolve().parent / 'dataset')
-    f = Path(base) / symbol / 'D.parquet'
-    if not f.exists():
+    f_parquet = Path(base) / symbol / 'D.parquet'
+    f_csv = Path(base) / symbol / 'D.csv'
+    if not f_parquet.exists() and not f_csv.exists():
         return jsonify([])
     frm = request.args.get('from'); to = request.args.get('to')
     limit = request.args.get('limit')
     try:
         import pandas as _pd
-        df = _pd.read_parquet(f)
+        if f_parquet.exists():
+            df = _pd.read_parquet(f_parquet)
+        else:
+            df = _pd.read_csv(f_csv)
         # ensure required cols
         for c in ['date','open','high','low','close','volume']:
             if c not in df.columns:

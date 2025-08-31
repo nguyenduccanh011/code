@@ -29,7 +29,11 @@ def proxy_cp68_eod():
     t = 'all' if scope == 'all' else 'last'
     url = f'https://www.cophieu68.vn/download/_amibroker.php?type={t}'
     try:
-        resp = requests.get(url, timeout=60)
+        headers = {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+            'Accept': '*/*',
+        }
+        resp = requests.get(url, headers=headers, timeout=60)
         content = resp.content
         status = resp.status_code
         # Serve as a zip file stream regardless of upstream content-type
