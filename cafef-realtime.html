@@ -21,7 +21,8 @@
     .note { font-size: 12px; opacity: 0.75; margin-top: 6px; }
   </style>
   <script>
-    window.API_PROXY_BASE = localStorage.getItem('API_PROXY_BASE') || 'http://127.0.0.1:5050';
+    // Dùng cổng 5000 mặc định để chạy cùng server hợp nhất (backend/serve.py)
+    window.API_PROXY_BASE = localStorage.getItem('API_PROXY_BASE') || 'http://127.0.0.1:5000';
   </script>
   <script defer src="src/pages/cafef-realtime.js"></script>
 </head>

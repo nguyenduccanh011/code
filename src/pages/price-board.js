@@ -1,5 +1,5 @@
 (() => {
-  const base = window.API_PROXY_BASE || 'http://127.0.0.1:5050';
+  const base = window.API_PROXY_BASE || 'http://127.0.0.1:5000';
 
   const thead = document.getElementById('pb-thead');
   const tbody = document.getElementById('pb-tbody');
@@ -188,4 +188,3 @@
 
   loadAll().then(startRealtime);
 })();
-

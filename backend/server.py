@@ -14,6 +14,11 @@ from pathlib import Path
 
 from cache_manager import CacheManager
 
+# Safe defaults for optional managers loaded at startup
+listing_manager = None
+industries_df = None
+trading_manager = None
+
 
 class BacktestingEngine:
     """Simple backtesting engine for equity strategies."""

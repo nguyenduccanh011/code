@@ -6,7 +6,8 @@
   <title>Bảng giá - 3 sàn</title>
   <link rel="stylesheet" href="css/price-board.css" />
   <script>
-    window.API_PROXY_BASE = localStorage.getItem('API_PROXY_BASE') || 'http://127.0.0.1:5050';
+    // Dùng cổng 5000 mặc định để chạy cùng server hợp nhất (backend/serve.py)
+    window.API_PROXY_BASE = localStorage.getItem('API_PROXY_BASE') || 'http://127.0.0.1:5000';
   </script>
   <style>
     body.light { --bg:#f7fbff; --bg-soft:#e9f1f8; --fg:#0b2239; --muted:#47627a; --grid:#d0dbe4; }
@@ -75,4 +76,3 @@
   Chạy: python backend/proxy_server.py, sau đó mở file này.
 -->
 </html>
-
