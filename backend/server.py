@@ -16,6 +16,7 @@ from cache_manager import CacheManager
 
 # Safe defaults for optional managers loaded at startup
 listing_manager = None
+all_companies_df = None
 industries_df = None
 trading_manager = None
 
@@ -789,15 +790,42 @@ def api_industry_list():
     out = []
     try:
         if industries_df is not None:
-            cols = {c.lower(): c for c in industries_df.columns}
+            cols_map = {c.lower(): c for c in industries_df.columns}
+            # Ưu tiên các cột chuẩn
             for c in ['icb_name', 'industry_name', 'industry', 'sector_name']:
-                if c in cols:
-                    real = cols[c]
+                if c in cols_map:
+                    real = cols_map[c]
                     ser = industries_df[real].dropna().astype(str)
-                    out = sorted({s for s in ser.tolist() if s and s.upper() != 'NAN'})
+                    out = [s for s in ser.tolist() if s and s.upper() != 'NAN']
                     break
+            # Fallback: gom từ mọi cột có chứa từ khóa industry/sector/icb
+            if not out:
+                cand_cols = [col for col in industries_df.columns if any(k in col.lower() for k in ['industry', 'sector', 'icb'])]
+                vals = []
+                for col in cand_cols:
+                    try:
+                        ser = industries_df[col].dropna().astype(str).tolist()
+                        vals.extend(ser)
+                    except Exception:
+                        continue
+                out = [s for s in vals if s and s.upper() != 'NAN']
     except Exception:
         out = []
+    # As a last resort, thử lôi từ all_companies_df nếu có
+    if not out and all_companies_df is not None:
+        try:
+            cand_cols = [col for col in all_companies_df.columns if any(k in str(col).lower() for k in ['industry', 'sector', 'icb'])]
+            vals = []
+            for col in cand_cols:
+                try:
+                    ser = all_companies_df[col].dropna().astype(str).tolist()
+                    vals.extend(ser)
+                except Exception:
+                    continue
+            out = [s for s in vals if s and s.upper() != 'NAN']
+        except Exception:
+            pass
+    out = sorted({s for s in out})
     return jsonify({"industries": out})
 
 
