@@ -955,6 +955,11 @@ def api_industry_lastest():
         syms = [s for s in syms if s and s.upper() != 'NAN'][:300]
         if not syms:
             return jsonify({"data": out})
+        # Try cache first
+        cache_key = f"industry_lastest_{target}_{len(syms)}"
+        cached = cache.get(cache_key)
+        if cached is not None:
+            return jsonify({"data": cached})
         # Fetch in chunks
         import math
         frames = []
@@ -962,14 +967,32 @@ def api_industry_lastest():
             part = syms[i*80:(i+1)*80]
             try:
                 df = trading_manager.price_board(part)
-                if df is not None and not df.empty:
+                if df is not None and not getattr(df, 'empty', True):
                     frames.append(df)
             except Exception:
-                continue
+                df = None
+            # Fallback per-symbol if batch failed/empty
+            if not frames or (df is None or getattr(df, 'empty', True)):
+                for s in part:
+                    try:
+                        f = trading_manager.price_board([s])
+                        if f is not None and not getattr(f, 'empty', True):
+                            frames.append(f)
+                    except Exception:
+                        continue
         if not frames:
             return jsonify({"data": out})
         import pandas as _pd
-        df = _pd.concat(frames)
+        try:
+            df = _pd.concat(frames)
+        except Exception:
+            # if any object different shapes, keep first non-empty
+            df = None
+            for f in frames:
+                if f is not None and not getattr(f, 'empty', True):
+                    df = f if df is None else _pd.concat([df, f], ignore_index=False)
+            if df is None:
+                return jsonify({"data": out})
         # Flatten
         if isinstance(df.columns, pd.MultiIndex):
             new_cols = []
@@ -1071,6 +1094,11 @@ def api_industry_lastest():
                 'priceChangePercent': pct if pct is not None else None,
                 'matchQtty': vol if vol is not None else None,
             }
+        # short cache to reduce repeated heavy calls
+        try:
+            cache.set(cache_key, out, ttl=15)
+        except Exception:
+            pass
         return jsonify({"data": out})
     except Exception as e:
         return jsonify({"error": str(e), "data": out}), 500
