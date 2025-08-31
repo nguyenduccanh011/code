@@ -1,6 +1,6 @@
 /* src/pages/fireant-quotes.js */
 (function () {
-  const base = window.API_PROXY_BASE || 'http://127.0.0.1:5050';
+  const base = window.API_PROXY_BASE || 'http://127.0.0.1:5000';
   const $ = (s) => document.querySelector(s);
   const nf0 = new Intl.NumberFormat('vi-VN');
   const nf2 = new Intl.NumberFormat('vi-VN', { maximumFractionDigits: 2 });

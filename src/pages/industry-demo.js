@@ -1,5 +1,5 @@
 (() => {
-  const base = window.API_PROXY_BASE || 'http://127.0.0.1:5050';
+  const base = window.API_PROXY_BASE || 'http://127.0.0.1:5000';
 
   const sel = document.getElementById('ind-select');
   const btnLoad = document.getElementById('btn-load');
@@ -129,4 +129,3 @@
 
   loadIndustries().then(loadStocks);
 })();
-

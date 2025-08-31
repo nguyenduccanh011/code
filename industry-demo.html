@@ -16,14 +16,15 @@
     .panel h3 { margin: 0 0 8px; color: #bfe1ff; }
     table { width: 100%; border-collapse: collapse; }
     th, td { padding: 6px 8px; border-bottom: 1px solid #232c4a; }
-    th { text-align: left; color: #9fc1ff; background: #0f1630; position: sticky; top: 0; }
+    th { text-align: left; color: #9fc1ff; background: #0f1630; position: sticky; top: var(--site-nav-h, 0px); }
     .scroll { max-height: 540px; overflow: auto; }
     .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
     .up { color: #4be3a4; }
     .down { color: #ff7a7a; }
   </style>
   <script>
-    window.API_PROXY_BASE = localStorage.getItem('API_PROXY_BASE') || 'http://127.0.0.1:5050';
+    // Dùng server hợp nhất (port 5000) mặc định
+    window.API_PROXY_BASE = localStorage.getItem('API_PROXY_BASE') || 'http://127.0.0.1:5000';
   </script>
   <script defer src="src/pages/industry-demo.js"></script>
 </head>

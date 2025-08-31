@@ -14,7 +14,7 @@
     .wrap { max-height: 75vh; overflow: auto; border: 1px solid #1a1d31; border-radius: 6px; }
     table { width: 100%; border-collapse: collapse; }
     th, td { padding: 6px 8px; border-bottom: 1px solid #23253a; text-align: right; }
-    th { background: #11152b; position: sticky; top: 0; }
+    th { background: #11152b; position: sticky; top: var(--site-nav-h, 0px); }
     th:first-child, td:first-child { text-align: left; }
     .up { color: #3ecf8e; }
     .down { color: #ff6b6b; }
@@ -22,7 +22,8 @@
     .note { font-size: 12px; opacity: 0.75; margin-top: 6px; }
   </style>
   <script>
-    window.API_PROXY_BASE = localStorage.getItem('API_PROXY_BASE') || 'http://127.0.0.1:5050';
+    // Dùng server hợp nhất (port 5000) mặc định
+    window.API_PROXY_BASE = localStorage.getItem('API_PROXY_BASE') || 'http://127.0.0.1:5000';
   </script>
   <script defer src="src/pages/fireant-quotes.js"></script>
 </head>
