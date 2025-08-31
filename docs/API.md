@@ -43,6 +43,11 @@ Tất cả API trả về JSON UTF‑8. Một số route có cache (xem `backend
 - MBS stocklist: `GET /api/proxy/mbs/stocklist`
 - TVSI: `/api/proxy/tvsi/...` (overview/lastest/pricehistory/statistic)
 
+- CoPhieu68 (EOD Amibroker):
+  - ZIP EOD: `GET /api/proxy/cp68/eod?scope=all|last`
+  - Chuẩn hóa JSON/Parquet: `GET /api/cp68/eod/normalized?scope=all|last&symbols=AAA,MWG&from=YYYY-MM-DD&to=YYYY-MM-DD&format=json|parquet[&groupBy=1]`
+    - Parse TXT: `<Ticker>,<DTYYYYMMDD>,<Open>,<High>,<Low>,<Close>,<Volume>`
+    - Trả về mảng phẳng hoặc `{symbol: [...]}` khi `groupBy=1`
+
 Gợi ý: frontend mặc định dùng `API_PROXY_BASE = http://127.0.0.1:5000`. Có thể override tạm thời bằng:
 `localStorage.setItem('API_PROXY_BASE','http://127.0.0.1:5000')`.
-

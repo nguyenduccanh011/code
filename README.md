@@ -42,6 +42,7 @@ Tổng hợp đầy đủ ở `docs/API.md`. Một số route tiêu biểu:
 - Backend: `/api/screener`, `/api/history`, `/api/price_board`, `/api/market_data`
 - Nhóm ngành: `/api/industry/list|stocks|lastest` (có `debug=1`)
 - Proxy: `/api/proxy/vcbs/priceboard`, `/api/proxy/vnd/...`, `/api/proxy/cafef/...`, `/api/proxy/vietstock/...`, `/api/proxy/fireant/...`
+  - CoPhieu68: `/api/proxy/cp68/eod?scope=all|last` và `/api/cp68/eod/normalized?scope=all|last&symbols=...&from=...&to=...&format=json|parquet`
 
 ## Kiến trúc & Ghi chú kỹ thuật
 - Server hợp nhất (`backend/serve.py`) định tuyến `/api/proxy/...` sang proxy và phần còn lại sang backend.
@@ -59,4 +60,3 @@ Xem `docs/ROADMAP.md` (đã ghi lại các mốc đã hoàn thành và kế ho�
 
 ## Bản quyền
 Mã nguồn demo phục vụ mục đích học tập/nghiên cứu dữ liệu thị trường Việt Nam.
-

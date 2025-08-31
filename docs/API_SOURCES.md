@@ -30,6 +30,19 @@ This document consolidates external endpoints and payload formats that were orig
   - URL: `https://api-finfo.vndirect.com.vn/v4/stocks`
   - Query example: `q=type:IFC,ETF,STOCK~status:LISTED&fields=code,companyName,companyNameEng,shortName,floor,industryName,taxCode,listedDate,companyId,type,status&size=3000`
 
+## CoPhieu68 EOD (Amibroker)
+
+- ZIP EOD phục vụ Amibroker với 1 file TXT duy nhất bên trong.
+- URL:
+  - Full từ 2000: `https://www.cophieu68.vn/download/_amibroker.php?type=all`
+  - Ngày hiện tại (cập nhật thường xuyên): `https://www.cophieu68.vn/download/_amibroker.php?type=last`
+- Cấu trúc TXT:
+  - Header: `<Ticker>,<DTYYYYMMDD>,<Open>,<High>,<Low>,<Close>,<Volume>`
+  - Ví dụ: `AAA,20100715,10.7,11.1,10.1,10.2,174100`
+- Proxy và chuẩn hóa trong dự án:
+  - Proxy ZIP: `GET /api/proxy/cp68/eod?scope=all|last`
+  - Chuẩn hóa JSON/Parquet: `GET /api/cp68/eod/normalized?scope=all|last&symbols=...&from=...&to=...&format=json|parquet`
+
 ## Proxy Routes (ứng với các nguồn trên)
 
 - VCBS qua proxy: `GET /api/proxy/vcbs/priceboard?criteriaId=-11|-12|-13`

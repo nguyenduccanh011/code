@@ -11,6 +11,8 @@ import json
 import re
 import time
 from pathlib import Path
+import io
+import zipfile
 
 from cache_manager import CacheManager
 
@@ -1171,6 +1173,150 @@ def api_industry_lastest():
         return jsonify({"data": out})
     except Exception as e:
         return jsonify({"error": str(e), "data": out}), 500
+
+@app.route('/api/cp68/eod/normalized')
+def api_cp68_eod_normalized():
+    """Download CP68 EOD zip, parse TXT and return normalized OHLCV.
+    Query:
+      - scope: all|last (default: last)
+      - symbols: optional CSV filter
+      - from: optional YYYY-MM-DD
+      - to: optional YYYY-MM-DD
+      - format: json|parquet (default: json)
+      - groupBy: 1 to group by symbol in JSON
+    """
+    scope = (request.args.get('scope') or 'last').lower()
+    t = 'all' if scope == 'all' else 'last'
+    fmt = (request.args.get('format') or 'json').lower()
+    group_by = (request.args.get('groupBy') or '0') == '1'
+    symbols_filter = request.args.get('symbols')
+    sym_set = None
+    if symbols_filter:
+        sym_set = {s.strip().upper() for s in symbols_filter.split(',') if s.strip()}
+    date_from = request.args.get('from')
+    date_to = request.args.get('to')
+    def parse_date(s):
+        try:
+            return datetime.strptime(s, '%Y-%m-%d').date()
+        except Exception:
+            return None
+    d_from = parse_date(date_from) if date_from else None
+    d_to = parse_date(date_to) if date_to else None
+
+    # cache key
+    cache_key = f"cp68_{t}_{symbols_filter or ''}_{date_from or ''}_{date_to or ''}_{fmt}_{int(group_by)}"
+    cached = cache.get(cache_key)
+    if cached is not None and fmt == 'json':
+        return Response(json.dumps(cached, ensure_ascii=False), mimetype='application/json; charset=utf-8')
+
+    # Fetch zip via proxy route to avoid CORS and consolidate code
+    try:
+        import requests  # type: ignore
+    except Exception:
+        requests = None
+    url = f"http://127.0.0.1:5000/api/proxy/cp68/eod?scope={t}"
+    try:
+        # If requests not available, return error
+        if requests is None:
+            return jsonify({"error": "requests not available"}), 500
+        resp = requests.get(url, timeout=60)
+        resp.raise_for_status()
+        data = resp.content
+    except Exception as e:
+        return jsonify({"error": f"Download failed: {e}"}), 502
+
+    try:
+        zf = zipfile.ZipFile(io.BytesIO(data))
+        # pick first .txt entry
+        txt_name = None
+        for n in zf.namelist():
+            if n.lower().endswith('.txt'):
+                txt_name = n
+                break
+        if not txt_name:
+            return jsonify({"error": "No TXT file in ZIP"}), 500
+        with zf.open(txt_name, 'r') as f:
+            raw = f.read()
+        # try utf-8 then fallback latin-1
+        try:
+            text = raw.decode('utf-8')
+        except Exception:
+            text = raw.decode('latin-1')
+    except Exception as e:
+        return jsonify({"error": f"Unzip failed: {e}"}), 500
+
+    lines = [ln.strip() for ln in text.splitlines() if ln.strip()]
+    out = []
+    # skip header if present
+    start_idx = 0
+    if lines and lines[0].lower().startswith('<ticker>'):
+        start_idx = 1
+    for ln in lines[start_idx:]:
+        parts = ln.split(',')
+        if len(parts) < 7:
+            continue
+        sym = parts[0].strip().upper()
+        yyyymmdd = parts[1].strip()
+        if yyyymmdd == '00000000':
+            continue
+        try:
+            dt = datetime.strptime(yyyymmdd, '%Y%m%d').date()
+        except Exception:
+            continue
+        if d_from and dt < d_from:
+            continue
+        if d_to and dt > d_to:
+            continue
+        if sym_set and sym not in sym_set:
+            continue
+        def to_float(x):
+            try:
+                return float(x)
+            except Exception:
+                return None
+        def to_int(x):
+            try:
+                return int(float(x))
+            except Exception:
+                return None
+        o = to_float(parts[2]); h = to_float(parts[3]); l = to_float(parts[4]); c = to_float(parts[5]); v = to_int(parts[6])
+        out.append({
+            'symbol': sym,
+            'date': dt.isoformat(),
+            'open': o,
+            'high': h,
+            'low': l,
+            'close': c,
+            'volume': v
+        })
+
+    if fmt == 'parquet':
+        try:
+            import pandas as _pd
+            df = _pd.DataFrame(out)
+            if df.empty:
+                # still return an empty parquet
+                df = _pd.DataFrame(columns=['symbol','date','open','high','low','close','volume'])
+            bio = io.BytesIO()
+            try:
+                df.to_parquet(bio, index=False)
+            except Exception as e:
+                return jsonify({"error": f"Parquet export requires pyarrow/fastparquet: {e}"}), 501
+            bio.seek(0)
+            return Response(bio.read(), mimetype='application/octet-stream')
+        except Exception as e:
+            return jsonify({"error": str(e)}), 500
+
+    # JSON output
+    if group_by:
+        grouped = {}
+        for r in out:
+            grouped.setdefault(r['symbol'], []).append({k: r[k] for k in ('date','open','high','low','close','volume')})
+        cache.set(cache_key, grouped, ttl=300)
+        return Response(json.dumps(grouped, ensure_ascii=False), mimetype='application/json; charset=utf-8')
+    else:
+        cache.set(cache_key, out, ttl=300)
+        return Response(json.dumps(out, ensure_ascii=False), mimetype='application/json; charset=utf-8')
 
 if __name__ == '__main__':
     app.run(debug=True, port=5000)

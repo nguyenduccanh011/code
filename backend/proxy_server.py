@@ -15,6 +15,28 @@ except Exception:
     # CORS not critical; frontend can be served from same origin or adjust manually
     pass
 
+@app.route('/api/proxy/cp68/eod', methods=['GET'])
+def proxy_cp68_eod():
+    """Proxy ZIP EOD from cophieu68.vn
+    Query: scope=all|last (default: last)
+    """
+    try:
+        import requests  # type: ignore
+    except Exception:
+        return jsonify({"error": "Python 'requests' package not available. Install via: pip install requests"}), 500
+
+    scope = (request.args.get('scope') or 'last').lower()
+    t = 'all' if scope == 'all' else 'last'
+    url = f'https://www.cophieu68.vn/download/_amibroker.php?type={t}'
+    try:
+        resp = requests.get(url, timeout=60)
+        content = resp.content
+        status = resp.status_code
+        # Serve as a zip file stream regardless of upstream content-type
+        return Response(content, status=status, content_type='application/zip')
+    except Exception as e:
+        return jsonify({"error": str(e)}), 502
+
 
 @app.route('/api/proxy/vcbs/priceboard', methods=['GET'])
 def proxy_vcbs_priceboard():
