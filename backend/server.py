@@ -1442,6 +1442,62 @@ def api_cp68_eod_export():
 
     return jsonify({"ok": True, "written": written, "base": base, "errors": errors})
 
+@app.route('/api/dataset/symbols')
+def api_dataset_symbols():
+    """List symbols available under dataset base.
+    Query: base (default: backend/dataset)
+    """
+    base = request.args.get('base') or str(Path(__file__).resolve().parent / 'dataset')
+    p = Path(base)
+    if not p.exists():
+        return jsonify({"symbols": []})
+    syms = []
+    for child in p.iterdir():
+        if child.is_dir() and (child / 'D.parquet').exists():
+            syms.append(child.name)
+    syms.sort()
+    return jsonify({"symbols": syms, "base": base})
+
+@app.route('/api/dataset/candles')
+def api_dataset_candles():
+    """Read candles from local dataset parquet quickly.
+    Query: symbol, from (YYYY-MM-DD), to (YYYY-MM-DD), base (default backend/dataset), limit
+    Returns flat JSON [{date,open,high,low,close,volume}]
+    """
+    symbol = (request.args.get('symbol') or '').strip().upper()
+    if not symbol:
+        return jsonify({"error": "symbol is required"}), 400
+    base = request.args.get('base') or str(Path(__file__).resolve().parent / 'dataset')
+    f = Path(base) / symbol / 'D.parquet'
+    if not f.exists():
+        return jsonify([])
+    frm = request.args.get('from'); to = request.args.get('to')
+    limit = request.args.get('limit')
+    try:
+        import pandas as _pd
+        df = _pd.read_parquet(f)
+        # ensure required cols
+        for c in ['date','open','high','low','close','volume']:
+            if c not in df.columns:
+                df[c] = None
+        # filter by date range if provided
+        if frm:
+            df = df[df['date'] >= frm]
+        if to:
+            df = df[df['date'] <= to]
+        df = df.sort_values('date')
+        if limit:
+            try:
+                n = int(limit)
+                if n > 0:
+                    df = df.tail(n)
+            except Exception:
+                pass
+        out = df[['date','open','high','low','close','volume']].to_dict(orient='records')
+        return jsonify(out)
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
 if __name__ == '__main__':
     app.run(debug=True, port=5000)
 

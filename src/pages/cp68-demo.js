@@ -62,14 +62,32 @@
       if (fromEl.value) params.set('from', fromEl.value);
       if (toEl.value) params.set('to', toEl.value);
       const url = `${base}/api/cp68/eod/normalized?${params.toString()}`;
-      const data = await fetchJSON(url);
+      let data = await fetchJSON(url);
       // Nếu người dùng đặt from/to không khớp với 'last', data có thể rỗng. Thử fallback bỏ from/to.
       if ((!data || (Array.isArray(data) && data.length===0) || (data && !Array.isArray(data) && Object.keys(data).length===0)) && scope==='last' && (fromEl.value || toEl.value)){
         const p2 = new URLSearchParams({ scope, symbols, format:'json', groupBy:'1' });
         const url2 = `${base}/api/cp68/eod/normalized?${p2.toString()}`;
-        const data2 = await fetchJSON(url2);
-        await render(data2, symbols);
-        setLog('Đang hiển thị (fallback không dùng from/to).');
+        data = await fetchJSON(url2);
+        if (data && Object.keys(data).length){
+          await render(data, symbols);
+          setLog('Đang hiển thị (fallback không dùng from/to).');
+          return;
+        }
+      }
+      // Nếu vẫn rỗng, thử lấy từ dataset local
+      if ((!data || (Array.isArray(data) && data.length===0) || (data && !Array.isArray(data) && Object.keys(data).length===0))){
+        const grouped = {};
+        for (const s of symbols.split(',').map(x=>x.trim().toUpperCase()).filter(Boolean)){
+          const p = new URLSearchParams({ symbol: s });
+          if (fromEl.value) p.set('from', fromEl.value);
+          if (toEl.value) p.set('to', toEl.value);
+          try{
+            const arr = await fetchJSON(`${base}/api/dataset/candles?${p.toString()}`);
+            grouped[s] = arr || [];
+          }catch{}
+        }
+        await render(grouped, symbols);
+        setLog('Hiển thị từ dataset local.');
         return;
       }
       await render(data, symbols);
@@ -108,4 +126,3 @@
   btn.addEventListener('click', load);
   window.addEventListener('DOMContentLoaded', () => { setTimeout(load, 50); });
 })();
-
