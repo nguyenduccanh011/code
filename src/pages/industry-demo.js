@@ -51,7 +51,12 @@
         arr = Array.from(set).sort();
       } catch (e) { console.warn('fallback VNDirect fetch failed', e); }
     }
-    sel.innerHTML = arr.map(x => `<option value="${x}">${x}</option>`).join('');
+    if (!arr.length) {
+      sel.innerHTML = `<option value="">(không có dữ liệu)</option>`;
+    } else {
+      sel.innerHTML = arr.map(x => `<option value="${x}">${x}</option>`).join('');
+      sel.selectedIndex = 0;
+    }
     if (!allCache.length) {
       try {
         const d = await fetchJSON(`${base}/api/proxy/vndirect/stocks?q=${encodeURIComponent('type:IFC,ETF,STOCK~status:LISTED')}&size=3000`);
@@ -79,10 +84,22 @@
         return (vn.length > 1 && (vn.includes(indN) || indN.includes(vn)));
       });
     }
-    lastest = {};
+    // Nếu vẫn chưa có list, fallback bằng danh sách mã từ lastest
+    if (!ok) {
+      try {
+        const d = await fetchJSON(`${base}/api/industry/lastest?industry=${encodeURIComponent(ind)}`);
+        const m = d?.data || {};
+        const codes = Object.keys(m);
+        if (codes.length) {
+          list = codes.map(code => ({ code, companyName: '', floor: '' }));
+          lastest = m;
+          ok = true;
+        }
+      } catch (e) { console.warn('fallback lastest failed', e); }
+    }
+    lastest = ok ? lastest : {};
     render();
-    // Tự động lấy giá sau khi có danh sách mã
-    try { await loadLastest(); } catch {}
+    if (ok) { try { await loadLastest(); } catch {} }
   }
 
   async function loadLastest() {
