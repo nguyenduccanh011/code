@@ -772,6 +772,167 @@ def run_backtest():
     return jsonify(result)
 
 
+@app.route('/api/industry/list')
+def api_industry_list():
+    """Danh sách ngành (ICB/industry/sector) nếu có."""
+    global industries_df, listing_manager, all_companies_df
+    # Đảm bảo dữ liệu listing/industry sẵn sàng
+    try:
+        if listing_manager is None:
+            listing_manager = Listing()
+        if industries_df is None:
+            tmp = listing_manager.symbols_by_industries()
+            tmp.set_index('symbol', inplace=True)
+            industries_df = tmp
+    except Exception:
+        pass
+    out = []
+    try:
+        if industries_df is not None:
+            cols = {c.lower(): c for c in industries_df.columns}
+            for c in ['icb_name', 'industry_name', 'industry', 'sector_name']:
+                if c in cols:
+                    real = cols[c]
+                    ser = industries_df[real].dropna().astype(str)
+                    out = sorted({s for s in ser.tolist() if s and s.upper() != 'NAN'})
+                    break
+    except Exception:
+        out = []
+    return jsonify({"industries": out})
+
+
+@app.route('/api/industry/stocks')
+def api_industry_stocks():
+    """Danh sách mã thuộc một ngành: trả về {code, companyName, floor}."""
+    global industries_df, listing_manager, all_companies_df
+    name = (request.args.get('industry') or '').strip()
+    if not name:
+        return jsonify({"data": []})
+    try:
+        if listing_manager is None:
+            listing_manager = Listing()
+        if industries_df is None:
+            tmp = listing_manager.symbols_by_industries()
+            tmp.set_index('symbol', inplace=True)
+            industries_df = tmp
+        if all_companies_df is None:
+            ac = listing_manager.symbols_by_exchange()
+            ac.set_index('symbol', inplace=True)
+            all_companies_df = ac
+    except Exception:
+        pass
+    items = []
+    try:
+        if industries_df is not None:
+            cols = {c.lower(): c for c in industries_df.columns}
+            mask = None
+            for c in ['icb_name', 'industry_name', 'industry', 'sector_name']:
+                if c in cols:
+                    real = cols[c]
+                    m = industries_df[real].astype(str).str.lower() == name.lower()
+                    mask = m if mask is None else (mask | m)
+            if mask is not None:
+                syms = industries_df[mask].index.astype(str).str.upper().tolist()
+                for s in syms:
+                    rec = {"code": s}
+                    if all_companies_df is not None and s in all_companies_df.index:
+                        try:
+                            rec['companyName'] = all_companies_df.loc[s].get('organ_name') or ''
+                            rec['floor'] = all_companies_df.loc[s].get('exchange') or ''
+                        except Exception:
+                            pass
+                    items.append(rec)
+    except Exception:
+        items = []
+    return jsonify({"data": items})
+
+
+@app.route('/api/industry/lastest')
+def api_industry_lastest():
+    """Giá hiện tại cho toàn bộ mã thuộc một ngành. Trả về map {SYMB: {...}}"""
+    global industries_df, listing_manager, trading_manager
+    name = (request.args.get('industry') or '').strip()
+    out = {}
+    try:
+        if listing_manager is None:
+            listing_manager = Listing()
+        if industries_df is None:
+            tmp = listing_manager.symbols_by_industries()
+            tmp.set_index('symbol', inplace=True)
+            industries_df = tmp
+        if trading_manager is None:
+            trading_manager = Trading()
+    except Exception:
+        pass
+    try:
+        if not name or industries_df is None or trading_manager is None:
+            return jsonify({"data": out})
+        # Collect symbols for industry
+        cols = {c.lower(): c for c in industries_df.columns}
+        mask = None
+        for c in ['icb_name', 'industry_name', 'industry', 'sector_name']:
+            if c in cols:
+                real = cols[c]
+                m = industries_df[real].astype(str).str.lower() == name.lower()
+                mask = m if mask is None else (mask | m)
+        if mask is None or (not mask.any()):
+            return jsonify({"data": out})
+        syms = industries_df[mask].index.astype(str).str.upper().tolist()
+        syms = [s for s in syms if s and s.upper() != 'NAN'][:300]
+        if not syms:
+            return jsonify({"data": out})
+        # Fetch in chunks
+        import math
+        frames = []
+        for i in range(int(math.ceil(len(syms)/80))):
+            part = syms[i*80:(i+1)*80]
+            try:
+                df = trading_manager.price_board(part)
+                if df is not None and not df.empty:
+                    frames.append(df)
+            except Exception:
+                continue
+        if not frames:
+            return jsonify({"data": out})
+        import pandas as _pd
+        df = _pd.concat(frames)
+        # Flatten
+        if isinstance(df.columns, pd.MultiIndex):
+            new_cols = []
+            for col in df.columns.values:
+                parts = [p for p in col if p]
+                parts = [str(p) for p in parts]
+                new_cols.append('_'.join(parts))
+            df.columns = new_cols
+        else:
+            df.columns = [str(c) for c in df.columns]
+        df = df.reset_index()
+        # Build map
+        def pick(row, cands):
+            for c in cands:
+                if c in row and row[c] is not None and not (isinstance(row[c], float) and np.isnan(row[c])):
+                    return row[c]
+            return None
+        rows = df.to_dict(orient='records')
+        for r in rows:
+            sym = pick(r, ['symbol','ticker','listing_symbol','listing_mapping_symbol'])
+            if not sym:
+                continue
+            sym = str(sym).upper()
+            last = pick(r, ['match_price','price_match','last_price','last','close'])
+            chg = pick(r, ['change','price_change','diff'])
+            pct = pick(r, ['change_percent','price_change_percent','pct_change'])
+            vol = pick(r, ['match_volume','volume_match','volume','matched_volume','total_volume'])
+            out[sym] = {
+                'lastPrice': last if last is not None else None,
+                'priceChange': chg if chg is not None else None,
+                'priceChangePercent': pct if pct is not None else None,
+                'matchQtty': vol if vol is not None else None,
+            }
+        return jsonify({"data": out})
+    except Exception as e:
+        return jsonify({"error": str(e), "data": out}), 500
+
 if __name__ == '__main__':
     app.run(debug=True, port=5000)
 
