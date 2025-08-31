@@ -994,15 +994,77 @@ def api_industry_lastest():
                     return row[c]
             return None
         rows = df.to_dict(orient='records')
+        # Build case-insensitive key maps to increase robustness
         for r in rows:
-            sym = pick(r, ['symbol','ticker','listing_symbol','listing_mapping_symbol','index'])
+            # make a lower->actual map
+            key_map = {str(k).lower(): k for k in r.keys()}
+            keys_lower = list(key_map.keys())
+
+            def find_key(cands, contains=False):
+                for c in cands:
+                    lc = c.lower()
+                    if lc in key_map:
+                        return key_map[lc]
+                if contains:
+                    for k in keys_lower:
+                        if all(seg in k for seg in cands):
+                            return key_map[k]
+                return None
+
+            # symbol candidates
+            sym_key = find_key(['symbol','ticker','listing_symbol','listing_mapping_symbol'])
+            if not sym_key:
+                # try any key that contains 'ticker' or 'symbol'
+                for k in keys_lower:
+                    if ('ticker' in k or 'symbol' in k) and key_map[k]:
+                        sym_key = key_map[k]
+                        break
+            sym = r.get(sym_key) if sym_key else r.get('index')
             if not sym:
                 continue
-            sym = str(sym).upper()
-            last = pick(r, ['match_price','price_match','last_price','last','close'])
-            chg = pick(r, ['change','price_change','diff'])
-            pct = pick(r, ['change_percent','price_change_percent','pct_change'])
-            vol = pick(r, ['match_volume','volume_match','volume','matched_volume','total_volume'])
+            sym = str(sym).upper().strip()
+            # must contain at least one letter
+            import re as _re
+            if not _re.match(r'^(?=.*[A-Z])[A-Z0-9\.]+$', sym):
+                continue
+
+            # price-like keys
+            price_key = find_key(['match_price','price_match','last_price','last','close'])
+            if not price_key:
+                # try combined contains rules
+                for k in keys_lower:
+                    if ('price' in k and ('match' in k or 'last' in k)):
+                        price_key = key_map[k]
+                        break
+            last = r.get(price_key) if price_key else None
+
+            # change absolute
+            chg_key = find_key(['change','price_change','diff'])
+            if not chg_key:
+                for k in keys_lower:
+                    if 'change' in k and 'percent' not in k:
+                        chg_key = key_map[k]
+                        break
+            chg = r.get(chg_key) if chg_key else None
+
+            # change percent
+            pct_key = find_key(['change_percent','price_change_percent','pct_change'])
+            if not pct_key:
+                for k in keys_lower:
+                    if 'change' in k and 'percent' in k:
+                        pct_key = key_map[k]
+                        break
+            pct = r.get(pct_key) if pct_key else None
+
+            # volume
+            vol_key = find_key(['match_volume','volume_match','volume','matched_volume','total_volume'])
+            if not vol_key:
+                for k in keys_lower:
+                    if ('volume' in k or 'qtty' in k) and ('match' in k or 'total' in k or 'matched' in k or k=='volume'):
+                        vol_key = key_map[k]
+                        break
+            vol = r.get(vol_key) if vol_key else None
+
             out[sym] = {
                 'lastPrice': last if last is not None else None,
                 'priceChange': chg if chg is not None else None,
