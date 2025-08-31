@@ -38,12 +38,21 @@
         <button id="btn-draw">Vẽ</button>
       </div>
       <div class="group" style="gap:10px">
-        <label><input type="checkbox" id="opt-ma" checked /> MA</label>
+        <label><input type="checkbox" id="opt-ma" checked /> MA1</label>
         <label>Kỳ: <input type="number" id="ma-period" value="20" min="1" style="width:80px" /></label>
+        <label><input type="checkbox" id="opt-ma2" /> MA2</label>
+        <label>Kỳ: <input type="number" id="ma2-period" value="50" min="1" style="width:80px" /></label>
+        <label><input type="checkbox" id="opt-ma3" /> MA3</label>
+        <label>Kỳ: <input type="number" id="ma3-period" value="200" min="1" style="width:80px" /></label>
+        <label><input type="checkbox" id="opt-bb" /> BB</label>
+        <label>Period: <input type="number" id="bb-period" value="20" min="1" style="width:80px" /></label>
+        <label>Dev: <input type="number" id="bb-dev" value="2" min="0.1" step="0.1" style="width:80px" /></label>
         <label><input type="checkbox" id="opt-macd" /> MACD</label>
         <label>Fast: <input type="number" id="macd-fast" value="12" min="1" style="width:70px" /></label>
         <label>Slow: <input type="number" id="macd-slow" value="26" min="1" style="width:70px" /></label>
         <label>Signal: <input type="number" id="macd-signal" value="9" min="1" style="width:70px" /></label>
+        <label><input type="checkbox" id="opt-rsi" /> RSI</label>
+        <label>Period: <input type="number" id="rsi-period" value="14" min="1" style="width:80px" /></label>
       </div>
       <div id="log"></div>
     </div>
@@ -55,6 +64,10 @@
         <div class="panel" id="macd-panel" style="display:none">
           <h3>MACD</h3>
           <div id="chart-macd" style="height:220px"></div>
+        </div>
+        <div class="panel" id="rsi-panel" style="display:none">
+          <h3>RSI</h3>
+          <div id="chart-rsi" style="height:180px"></div>
         </div>
         <div class="panel">
           <h3>Thông tin</h3>
