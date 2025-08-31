@@ -74,8 +74,13 @@
           return;
         }
       }
-      // Nếu vẫn rỗng, thử lấy từ dataset local
+      // Nếu vẫn rỗng, thử tạo dataset local từ scope hiện tại rồi đọc
       if ((!data || (Array.isArray(data) && data.length===0) || (data && !Array.isArray(data) && Object.keys(data).length===0))){
+        // cố gắng export (build) dataset từ CP68 last/all
+        try{
+          const pexp = new URLSearchParams({ scope, base: 'backend/dataset', mode: 'append', format: 'parquet' });
+          await fetch(`${base}/api/cp68/eod/export?${pexp.toString()}`, { method: 'GET' });
+        }catch{}
         const grouped = {};
         for (const s of symbols.split(',').map(x=>x.trim().toUpperCase()).filter(Boolean)){
           const p = new URLSearchParams({ symbol: s });
@@ -87,7 +92,7 @@
           }catch{}
         }
         await render(grouped, symbols);
-        setLog('Hiển thị từ dataset local.');
+        setLog('Hiển thị từ dataset local (đã auto build nếu cần).');
         return;
       }
       await render(data, symbols);

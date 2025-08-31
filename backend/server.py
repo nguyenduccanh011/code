@@ -1352,7 +1352,7 @@ def _cp68_parse_txt_from_zip(raw_zip_bytes: bytes):
     except Exception as e:
         return None, str(e)
 
-@app.route('/api/cp68/eod/export', methods=['POST'])
+@app.route('/api/cp68/eod/export', methods=['POST','GET'])
 def api_cp68_eod_export():
     """Build a local dataset from CoPhieu68 EOD ZIP.
     Query/body (either):
@@ -1363,10 +1363,11 @@ def api_cp68_eod_export():
     Writes per-symbol Parquet: {base}/{SYMBOL}/D.parquet
     Deduplicates by (date).
     """
-    scope = (request.values.get('scope') or 'last').lower()
-    base = request.values.get('base') or str(Path(__file__).resolve().parent / 'dataset')
-    mode = (request.values.get('mode') or 'append').lower()
-    fmt = (request.values.get('format') or 'parquet').lower()
+    # accept both GET and POST for convenience in demos
+    scope = (request.values.get('scope') or request.args.get('scope') or 'last').lower()
+    base = request.values.get('base') or request.args.get('base') or str(Path(__file__).resolve().parent / 'dataset')
+    mode = (request.values.get('mode') or request.args.get('mode') or 'append').lower()
+    fmt = (request.values.get('format') or request.args.get('format') or 'parquet').lower()
     if fmt != 'parquet':
         return jsonify({"error": "Only parquet is supported for export"}), 400
 
