@@ -1017,8 +1017,10 @@ def api_industry_lastest():
                     return row[c]
             return None
         rows = df.to_dict(orient='records')
+        dbg_enabled = (request.args.get('debug','0') == '1')
+        dbg = { 'syms': syms[:10], 'frames': len(frames) }
         # Build case-insensitive key maps to increase robustness
-        for r in rows:
+        for idx, r in enumerate(rows):
             # make a lower->actual map
             key_map = {str(k).lower(): k for k in r.keys()}
             keys_lower = list(key_map.keys())
@@ -1039,7 +1041,7 @@ def api_industry_lastest():
             if not sym_key:
                 # try any key that contains 'ticker' or 'symbol'
                 for k in keys_lower:
-                    if ('ticker' in k or 'symbol' in k) and key_map[k]:
+                    if (('ticker' in k) or ('symbol' in k) or ('code' in k)) and key_map[k]:
                         sym_key = key_map[k]
                         break
             sym = r.get(sym_key) if sym_key else r.get('index')
@@ -1056,7 +1058,7 @@ def api_industry_lastest():
             if not price_key:
                 # try combined contains rules
                 for k in keys_lower:
-                    if ('price' in k and ('match' in k or 'last' in k)):
+                    if ('price' in k and ('match' in k or 'last' in k)) or k == 'price':
                         price_key = key_map[k]
                         break
             last = r.get(price_key) if price_key else None
@@ -1080,10 +1082,10 @@ def api_industry_lastest():
             pct = r.get(pct_key) if pct_key else None
 
             # volume
-            vol_key = find_key(['match_volume','volume_match','volume','matched_volume','total_volume'])
+            vol_key = find_key(['match_volume','volume_match','volume','matched_volume','total_volume','qtty','qty'])
             if not vol_key:
                 for k in keys_lower:
-                    if ('volume' in k or 'qtty' in k) and ('match' in k or 'total' in k or 'matched' in k or k=='volume'):
+                    if (('volume' in k) or ('qtty' in k) or ('qty' in k)) and (('match' in k) or ('total' in k) or ('matched' in k) or k in ('volume','qtty','qty')):
                         vol_key = key_map[k]
                         break
             vol = r.get(vol_key) if vol_key else None
@@ -1094,11 +1096,22 @@ def api_industry_lastest():
                 'priceChangePercent': pct if pct is not None else None,
                 'matchQtty': vol if vol is not None else None,
             }
+            if dbg_enabled and idx < 3:
+                dbg.setdefault('rows', []).append({
+                    'sym_key': sym_key,
+                    'price_key': price_key,
+                    'chg_key': chg_key,
+                    'pct_key': pct_key,
+                    'vol_key': vol_key,
+                    'keys': list(r.keys())[:25]
+                })
         # short cache to reduce repeated heavy calls
         try:
             cache.set(cache_key, out, ttl=15)
         except Exception:
             pass
+        if dbg_enabled:
+            return jsonify({"data": out, "debug": dbg})
         return jsonify({"data": out})
     except Exception as e:
         return jsonify({"error": str(e), "data": out}), 500
