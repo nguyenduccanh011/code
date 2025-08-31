@@ -1318,6 +1318,130 @@ def api_cp68_eod_normalized():
         cache.set(cache_key, out, ttl=300)
         return Response(json.dumps(out, ensure_ascii=False), mimetype='application/json; charset=utf-8')
 
+def _cp68_download_zip(scope: str):
+    try:
+        import requests  # type: ignore
+    except Exception:
+        return None, "requests not available"
+    t = 'all' if scope == 'all' else 'last'
+    url = f"http://127.0.0.1:5000/api/proxy/cp68/eod?scope={t}"
+    try:
+        resp = requests.get(url, timeout=60)
+        resp.raise_for_status()
+        return resp.content, None
+    except Exception as e:
+        return None, str(e)
+
+def _cp68_parse_txt_from_zip(raw_zip_bytes: bytes):
+    try:
+        zf = zipfile.ZipFile(io.BytesIO(raw_zip_bytes))
+        txt_name = None
+        for n in zf.namelist():
+            if n.lower().endswith('.txt'):
+                txt_name = n
+                break
+        if not txt_name:
+            return None, "No TXT file in ZIP"
+        with zf.open(txt_name, 'r') as f:
+            raw = f.read()
+        try:
+            text = raw.decode('utf-8')
+        except Exception:
+            text = raw.decode('latin-1')
+        return text, None
+    except Exception as e:
+        return None, str(e)
+
+@app.route('/api/cp68/eod/export', methods=['POST'])
+def api_cp68_eod_export():
+    """Build a local dataset from CoPhieu68 EOD ZIP.
+    Query/body (either):
+      - scope: all|last (default: last)
+      - base: output base dir (default: backend/dataset)
+      - mode: append|overwrite (default: append)
+      - format: parquet (default)
+    Writes per-symbol Parquet: {base}/{SYMBOL}/D.parquet
+    Deduplicates by (date).
+    """
+    scope = (request.values.get('scope') or 'last').lower()
+    base = request.values.get('base') or str(Path(__file__).resolve().parent / 'dataset')
+    mode = (request.values.get('mode') or 'append').lower()
+    fmt = (request.values.get('format') or 'parquet').lower()
+    if fmt != 'parquet':
+        return jsonify({"error": "Only parquet is supported for export"}), 400
+
+    raw, err = _cp68_download_zip(scope)
+    if err:
+        return jsonify({"error": f"Download failed: {err}"}), 502
+    text, perr = _cp68_parse_txt_from_zip(raw)
+    if perr:
+        return jsonify({"error": f"Unzip failed: {perr}"}), 500
+
+    lines = [ln.strip() for ln in text.splitlines() if ln.strip()]
+    if lines and lines[0].lower().startswith('<ticker>'):
+        lines = lines[1:]
+    rows = []
+    for ln in lines:
+        parts = ln.split(',')
+        if len(parts) < 7:
+            continue
+        sym = parts[0].strip().upper()
+        yyyymmdd = parts[1].strip()
+        if yyyymmdd == '00000000':
+            continue
+        try:
+            dt = datetime.strptime(yyyymmdd, '%Y%m%d').date().isoformat()
+        except Exception:
+            continue
+        try:
+            o = float(parts[2]); h = float(parts[3]); l = float(parts[4]); c = float(parts[5])
+        except Exception:
+            o = h = l = c = None
+        try:
+            v = int(float(parts[6]))
+        except Exception:
+            v = None
+        rows.append({
+            'symbol': sym, 'date': dt, 'open': o, 'high': h, 'low': l, 'close': c, 'volume': v
+        })
+
+    # Build per-symbol parquet
+    try:
+        import pandas as _pd
+    except Exception as e:
+        return jsonify({"error": f"pandas required: {e}"}), 500
+    Path(base).mkdir(parents=True, exist_ok=True)
+    df_all = _pd.DataFrame(rows)
+    if df_all.empty:
+        return jsonify({"ok": True, "written": 0, "base": base})
+
+    written = 0
+    errors = {}
+    for sym, df in df_all.groupby('symbol'):
+        out_dir = Path(base) / sym
+        out_dir.mkdir(parents=True, exist_ok=True)
+        out_file = out_dir / 'D.parquet'
+        try:
+            if out_file.exists() and mode == 'append':
+                try:
+                    old = _pd.read_parquet(out_file)
+                    df = _pd.concat([old, df], ignore_index=True)
+                except Exception:
+                    pass
+            # deduplicate by date
+            if 'date' in df.columns:
+                df = df.drop_duplicates(subset=['date']).sort_values('date')
+            try:
+                df.to_parquet(out_file, index=False)
+            except Exception as e:
+                errors[str(sym)] = f"Parquet write error (need pyarrow/fastparquet?): {e}"
+                continue
+            written += 1
+        except Exception as e:
+            errors[str(sym)] = str(e)
+
+    return jsonify({"ok": True, "written": written, "base": base, "errors": errors})
+
 if __name__ == '__main__':
     app.run(debug=True, port=5000)
 
