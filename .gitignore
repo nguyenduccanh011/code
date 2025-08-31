@@ -63,3 +63,6 @@ tmp_*.py
 backend/xlsm/
 backend/cache/
 cache/
+backend/dataset/
+*.parquet
+*.csv

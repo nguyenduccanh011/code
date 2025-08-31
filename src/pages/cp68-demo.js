@@ -6,7 +6,10 @@
   const symbolsEl = $('#symbols');
   const fromEl = $('#from');
   const toEl = $('#to');
-  const btn = $('#load');
+  const btnNorm = $('#btn-norm');
+  const btnBuildLast = $('#btn-build-last');
+  const btnBuildAll = $('#btn-build-all');
+  const btnLoadDs = $('#btn-load-ds');
   const logEl = $('#log');
   const infoTbody = $('#info');
 
@@ -53,7 +56,7 @@
     main.setData(seriesBySymbol[syms[0]]);
   }
 
-  async function load(){
+  async function loadNormalized(){
     try{
       setLog('Đang tải...');
       const scope = (scopeEl.value||'last').toLowerCase();
@@ -128,6 +131,35 @@
     drawChart(seriesBySym);
   }
 
-  btn.addEventListener('click', load);
-  window.addEventListener('DOMContentLoaded', () => { setTimeout(load, 50); });
+  async function buildDataset(scope){
+    setLog('Đang build dataset ('+scope+') ...');
+    const p = new URLSearchParams({ scope, base: 'backend/dataset', mode: scope==='all'?'overwrite':'append', format: 'parquet' });
+    try{
+      const res = await fetch(`${base}/api/cp68/eod/export?${p.toString()}`, { method: 'GET' });
+      const js = await res.json();
+      setLog('Build xong: '+JSON.stringify(js));
+    }catch(e){ setLog('Lỗi build: '+(e&&e.message||e)); }
+  }
+
+  async function loadFromDataset(){
+    try{
+      setLog('Đang đọc dataset...');
+      const symbols = (symbolsEl.value||'AAA,MWG').trim();
+      const grouped = {};
+      for (const s of symbols.split(',').map(x=>x.trim().toUpperCase()).filter(Boolean)){
+        const p = new URLSearchParams({ symbol: s });
+        if (fromEl.value) p.set('from', fromEl.value);
+        if (toEl.value) p.set('to', toEl.value);
+        try{ grouped[s] = await fetchJSON(`${base}/api/dataset/candles?${p.toString()}`); }catch{ grouped[s]=[]; }
+      }
+      await render(grouped, symbols);
+      setLog('Hoàn tất (dataset).');
+    }catch(e){ setLog('Lỗi: '+(e&&e.message||e)); }
+  }
+
+  btnNorm.addEventListener('click', loadNormalized);
+  btnBuildLast.addEventListener('click', () => buildDataset('last'));
+  btnBuildAll.addEventListener('click', () => buildDataset('all'));
+  btnLoadDs.addEventListener('click', loadFromDataset);
+  window.addEventListener('DOMContentLoaded', () => { setTimeout(loadFromDataset, 50); });
 })();
