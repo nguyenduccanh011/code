@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>CP68 EOD Demo</title>
+  <link rel="stylesheet" href="style.css" />
+  <link rel="stylesheet" href="css/site-nav.css" />
+  <style>
+    body { font-family: system-ui, Arial, sans-serif; background:#0b1020; color:#dfe8ff; }
+    .wrap { max-width: 1200px; margin: 12px auto; padding: 0 12px; }
+    .bar { display:flex; flex-wrap:wrap; gap:8px; align-items:center; margin-bottom: 10px; }
+    input, select, button { padding:6px 8px; }
+    #log { font-size:12px; opacity:.8; margin-left:auto; }
+    .grid { display:grid; grid-template-columns: 1fr; gap:12px; }
+    .panel { background:#111735; border:1px solid #26304f; border-radius:10px; padding:12px; }
+    .panel h3 { margin: 0 0 8px; color:#bfe1ff; }
+    #chart { height: 460px; }
+    table { width:100%; border-collapse:collapse; font-size:12px; }
+    th, td { padding:6px 8px; border-bottom:1px solid #26304f; }
+    th { text-align:left; color:#9fc1ff; }
+  </style>
+  <script>
+    window.API_PROXY_BASE = localStorage.getItem('API_PROXY_BASE') || 'http://127.0.0.1:5000';
+  </script>
+  <script defer src="https://unpkg.com/lightweight-charts@4.1.0/dist/lightweight-charts.standalone.production.js"></script>
+  <script defer src="src/pages/cp68-demo.js"></script>
+</head>
+<body>
+  <script src="src/ui/site-nav.js" defer></script>
+  <div class="wrap">
+    <h1>CP68 EOD Demo</h1>
+    <div class="bar">
+      <label>Scope:</label>
+      <select id="scope">
+        <option value="last" selected>last (ngày hiện tại)</option>
+        <option value="all">all (full)</option>
+      </select>
+      <label>Mã (CSV):</label>
+      <input id="symbols" size="28" value="AAA,MWG" />
+      <label>Từ:</label>
+      <input id="from" type="date" />
+      <label>Đến:</label>
+      <input id="to" type="date" />
+      <button id="load">Tải & vẽ</button>
+      <div id="log"></div>
+    </div>
+    <div class="grid">
+      <div class="panel">
+        <h3>Biểu đồ</h3>
+        <div id="chart"></div>
+      </div>
+      <div class="panel">
+        <h3>Thông tin</h3>
+        <table>
+          <thead>
+            <tr><th>Mã</th><th>Số dòng</th><th>Ngày đầu</th><th>Ngày cuối</th></tr>
+          </thead>
+          <tbody id="info"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</body>
+</html>
+
