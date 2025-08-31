@@ -34,19 +34,31 @@
     <div class="bar">
       <div class="group">
         <label>Mã:</label>
-        <input id="symbol" size="14" value="AAA" />
+        <input id="symbol" size="14" value="AAA" placeholder="Nhập mã và Enter" />
         <button id="btn-draw">Vẽ</button>
+      </div>
+      <div class="group" style="gap:10px">
+        <label><input type="checkbox" id="opt-ma" checked /> MA</label>
+        <label>Kỳ: <input type="number" id="ma-period" value="20" min="1" style="width:80px" /></label>
+        <label><input type="checkbox" id="opt-macd" /> MACD</label>
+        <label>Fast: <input type="number" id="macd-fast" value="12" min="1" style="width:70px" /></label>
+        <label>Slow: <input type="number" id="macd-slow" value="26" min="1" style="width:70px" /></label>
+        <label>Signal: <input type="number" id="macd-signal" value="9" min="1" style="width:70px" /></label>
       </div>
       <div id="log"></div>
     </div>
-    <div class="grid">
-      <div class="panel">
-        <h3>Biểu đồ</h3>
-        <div id="chart"></div>
-      </div>
-      <div class="panel">
-        <h3>Thông tin</h3>
-        <table>
+      <div class="grid">
+        <div class="panel">
+          <h3>Biểu đồ</h3>
+          <div id="chart"></div>
+        </div>
+        <div class="panel" id="macd-panel" style="display:none">
+          <h3>MACD</h3>
+          <div id="chart-macd" style="height:220px"></div>
+        </div>
+        <div class="panel">
+          <h3>Thông tin</h3>
+          <table>
           <thead>
             <tr><th>Mã</th><th>Số dòng</th><th>Ngày đầu</th><th>Ngày cuối</th></tr>
           </thead>
