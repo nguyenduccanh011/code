@@ -252,7 +252,8 @@ def get_company_info():
             company_name = all_companies_df.loc[symbol]['organ_name']
             return jsonify({"fullName": company_name})
         else:
-            return jsonify({"fullName": f"KhÃ´ng tÃ¬m tháº¥y tÃªn cho mÃ£ {symbol}"})
+            # Return UTF-8 Vietnamese fallback for unknown symbols
+            return jsonify({"fullName": f"Không tìm thấy tên cho mã {symbol}"})
     except Exception as e:
         print(f"Lá»—i khi tra cá»©u thÃ´ng tin cho {symbol}: {e}")
         return jsonify({"error": str(e)}), 500
