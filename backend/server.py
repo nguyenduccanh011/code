@@ -1010,6 +1010,18 @@ def api_industry_lastest():
                 df.rename(columns={'index': 'symbol'}, inplace=True)
             except Exception:
                 pass
+        # Nếu 'symbol' có vẻ là chỉ số dòng (số) và có cột 'listing_symbol', dùng listing_symbol thay thế
+        try:
+            import re as _re
+            def _looks_numeric_symbol(s):
+                s = str(s)
+                return bool(_re.match(r'^[0-9]+$', s))
+            if 'symbol' in df.columns and 'listing_symbol' in df.columns:
+                sample = df['symbol'].head(5).tolist()
+                if sample and all(_looks_numeric_symbol(x) for x in sample):
+                    df['symbol'] = df['listing_symbol']
+        except Exception:
+            pass
         # Build map
         def pick(row, cands):
             for c in cands:
@@ -1049,12 +1061,22 @@ def api_industry_lastest():
                         break
             sym = r.get(sym_key) if sym_key else r.get('index')
             if not sym:
-                continue
+                # thử lấy từ listing_symbol nếu có
+                alt = find_key(['listing_symbol','listing_mapping_symbol'])
+                sym = r.get(alt) if alt else None
+                if not sym:
+                    continue
             sym = str(sym).upper().strip()
             # must contain at least one letter
             import re as _re
             if not _re.match(r'^(?=.*[A-Z])[A-Z0-9\.]+$', sym):
-                continue
+                # nếu symbol hiện tại không hợp lệ, thử dùng listing_symbol
+                alt = find_key(['listing_symbol','listing_mapping_symbol'])
+                altv = str(r.get(alt) or '').upper().strip() if alt else ''
+                if alt and _re.match(r'^(?=.*[A-Z])[A-Z0-9\.]+$', altv):
+                    sym = altv
+                else:
+                    continue
 
             # price-like keys
             price_key = find_key(['match_price','price_match','last_price','last','close'])
@@ -1112,21 +1134,25 @@ def api_industry_lastest():
         # If mapping yields empty but df has obvious columns, try simple fallback
         if not out and len(df) > 0:
             sym_col = None
-            for c in ['symbol','ticker']:
+            for c in ['symbol','ticker','listing_symbol','listing_mapping_symbol']:
                 if c in df.columns:
                     sym_col = c; break
             price_col = None
-            for c in ['match_price','price_match','last_price','last','close','price']:
+            for c in ['match_price','price_match','last_price','last','close','price','match_match_price','match_avg_match_price','match_open_price']:
                 if c in df.columns:
                     price_col = c; break
             vol_col = None
-            for c in ['match_volume','volume_match','matched_volume','total_volume','volume','qtty','qty']:
+            for c in ['match_volume','volume_match','matched_volume','total_volume','volume','qtty','qty','match_accumulated_volume']:
                 if c in df.columns:
                     vol_col = c; break
             if sym_col is not None:
                 for _, r in df.iterrows():
                     sym = str(r.get(sym_col) or '').upper().strip()
+                    if not sym and 'listing_symbol' in df.columns:
+                        sym = str(r.get('listing_symbol') or '').upper().strip()
                     if not sym:
+                        continue
+                    if not _re.match(r'^(?=.*[A-Z])[A-Z0-9\.]+$', sym):
                         continue
                     out[sym] = {
                         'lastPrice': r.get(price_col) if price_col else None,
