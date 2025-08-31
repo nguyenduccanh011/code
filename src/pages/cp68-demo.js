@@ -12,13 +12,13 @@
 
   function toCandleRows(arr){
     return arr.map(r => {
-      const [y,m,d] = String(r.date).split('-').map(n=>parseInt(n,10));
-      return { time:{year:y,month:m,day:d}, open:+r.open, high:+r.high, low:+r.low, close:+r.close };
+      const t = Math.floor(new Date(String(r.date)).getTime()/1000);
+      return { time:t, open:+r.open, high:+r.high, low:+r.low, close:+r.close };
     }).filter(x => isFinite(x.open) && isFinite(x.high) && isFinite(x.low) && isFinite(x.close));
   }
   function summary(arr){ if(!arr||!arr.length) return {len:0,first:'',last:''}; return { len:arr.length, first:arr[0].date, last:arr[arr.length-1].date } }
 
-  let chart, series, currentSym='', earliestDate=null, loadingOlder=false;
+  let chart, series, currentSym='', earliestDate=null, loadingOlder=false, dataCache=[];
   function createChart(){
     const chartEl = document.getElementById('chart'); chartEl.innerHTML='';
     chart = LightweightCharts.createChart(chartEl, { layout:{ background:{color:'#0b1020'}, textColor:'#dfe8ff' }, rightPriceScale:{ borderVisible:true }, timeScale:{ borderVisible:true }, grid:{ vertLines:{color:'#1c2748'}, horzLines:{color:'#1c2748'} } });
@@ -33,7 +33,9 @@
     infoTbody.innerHTML='';
     const {len,first,last} = summary(arr);
     infoTbody.innerHTML = `<tr><td>${sym}</td><td>${len}</td><td>${first}</td><td>${last}</td></tr>`;
-    series.setData(toCandleRows(arr));
+    dataCache = toCandleRows(arr);
+    series.setData(dataCache);
+    chart.timeScale().scrollToRealTime();
     currentSym = sym; earliestDate = first || null;
   }
   async function loadOlderChunk(){
@@ -42,9 +44,9 @@
     const p=new URLSearchParams({ symbol:currentSym, to, limit:String(CHUNK) });
     const arr = await fetchJSON(`${base}/api/dataset/candles?${p.toString()}`);
     if(!arr||!arr.length) return;
-    const existing = series._data || [];
     const older = toCandleRows(arr);
-    series.setData(older.concat(existing));
+    dataCache = older.concat(dataCache);
+    series.setData(dataCache);
     earliestDate = arr[0].date || earliestDate;
   }
 
