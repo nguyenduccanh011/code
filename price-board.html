@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Bảng giá - 3 sàn</title>
   <link rel="stylesheet" href="css/price-board.css" />
+  <link rel="stylesheet" href="css/site-nav.css" />
   <script>
     // Dùng cổng 5000 mặc định để chạy cùng server hợp nhất (backend/serve.py)
     window.API_PROXY_BASE = localStorage.getItem('API_PROXY_BASE') || 'http://127.0.0.1:5000';
@@ -15,6 +16,7 @@
   <!-- Lưu ý: file này được lưu UTF-8 -->
 </head>
 <body>
+  <script src="src/ui/site-nav.js" defer></script>
   <header class="pb-header">
     <div class="pb-brand">
       <div class="logo">CK</div>

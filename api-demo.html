@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>API Demo (VCBS / VNDirect / FPTS)</title>
   <link rel="stylesheet" href="style.css" />
+  <link rel="stylesheet" href="css/site-nav.css" />
   <style>
     body { font-family: system-ui, Arial, sans-serif; margin: 16px; }
     h1 { margin-bottom: 8px; }
@@ -21,8 +22,9 @@
     // Basic config for proxy base (adjust if needed)
     window.API_PROXY_BASE = localStorage.getItem('API_PROXY_BASE') || 'http://127.0.0.1:5050';
   </script>
-  </head>
+</head>
 <body>
+  <script src="src/ui/site-nav.js" defer></script>
   <h1>API Demo</h1>
   <p class="note">Chạy proxy: <code>python backend/proxy_server.py</code>. Thay đổi base bằng <code>localStorage.setItem('API_PROXY_BASE', 'http://127.0.0.1:5050')</code>.</p>
 

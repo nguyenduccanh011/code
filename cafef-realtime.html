@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>CafeF Realtime (HSX/HNX/UPCOM)</title>
   <link rel="stylesheet" href="style.css" />
+  <link rel="stylesheet" href="css/site-nav.css" />
   <style>
     body { font-family: system-ui, Arial, sans-serif; margin: 12px; background: #0a0815; color: #dfe6ff; }
     h1 { margin: 4px 0 10px; font-size: 18px; }
@@ -13,7 +14,7 @@
     .wrap { max-height: 75vh; overflow: auto; border: 1px solid #1a1d31; border-radius: 6px; }
     table { width: 100%; border-collapse: collapse; }
     th, td { padding: 6px 8px; border-bottom: 1px solid #23253a; text-align: right; }
-    th { background: #11152b; position: sticky; top: 0; }
+    th { background: #11152b; position: sticky; top: var(--site-nav-h, 0px); }
     th:first-child, td:first-child { text-align: left; }
     .up { color: #3ecf8e; }
     .down { color: #ff6b6b; }
@@ -27,6 +28,7 @@
   <script defer src="src/pages/cafef-realtime.js"></script>
 </head>
 <body>
+  <script src="src/ui/site-nav.js" defer></script>
   <h1>CafeF Realtime</h1>
   <div class="bar">
     <label>Sàn:</label>
