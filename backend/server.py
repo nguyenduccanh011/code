@@ -981,6 +981,12 @@ def api_industry_lastest():
         else:
             df.columns = [str(c) for c in df.columns]
         df = df.reset_index()
+        # một số nguồn để ticker ở index -> đổi sang 'symbol'
+        if 'symbol' not in df.columns and 'index' in df.columns:
+            try:
+                df.rename(columns={'index': 'symbol'}, inplace=True)
+            except Exception:
+                pass
         # Build map
         def pick(row, cands):
             for c in cands:
@@ -989,7 +995,7 @@ def api_industry_lastest():
             return None
         rows = df.to_dict(orient='records')
         for r in rows:
-            sym = pick(r, ['symbol','ticker','listing_symbol','listing_mapping_symbol'])
+            sym = pick(r, ['symbol','ticker','listing_symbol','listing_mapping_symbol','index'])
             if not sym:
                 continue
             sym = str(sym).upper()
