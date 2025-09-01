@@ -1175,139 +1175,6 @@ def api_industry_lastest():
     except Exception as e:
         return jsonify({"error": str(e), "data": out}), 500
 
-@app.route('/api/cp68/eod/normalized')
-def api_cp68_eod_normalized():
-    """Download CP68 EOD zip, parse TXT and return normalized OHLCV.
-    Query:
-      - scope: all|last (default: last)
-      - symbols: optional CSV filter
-      - from: optional YYYY-MM-DD
-      - to: optional YYYY-MM-DD
-      - format: json|parquet (default: json)
-      - groupBy: 1 to group by symbol in JSON
-    """
-    scope = (request.args.get('scope') or 'last').lower()
-    t = 'all' if scope == 'all' else 'last'
-    fmt = (request.args.get('format') or 'json').lower()
-    group_by = (request.args.get('groupBy') or '0') == '1'
-    symbols_filter = request.args.get('symbols')
-    sym_set = None
-    if symbols_filter:
-        sym_set = {s.strip().upper() for s in symbols_filter.split(',') if s.strip()}
-    date_from = request.args.get('from')
-    date_to = request.args.get('to')
-    def parse_date(s):
-        try:
-            return datetime.strptime(s, '%Y-%m-%d').date()
-        except Exception:
-            return None
-    d_from = parse_date(date_from) if date_from else None
-    d_to = parse_date(date_to) if date_to else None
-
-    # cache key
-    cache_key = f"cp68_{t}_{symbols_filter or ''}_{date_from or ''}_{date_to or ''}_{fmt}_{int(group_by)}"
-    cached = cache.get(cache_key)
-    if cached is not None and fmt == 'json':
-        return Response(json.dumps(cached, ensure_ascii=False), mimetype='application/json; charset=utf-8')
-
-    # Fetch zip directly from upstream to avoid self-call deadlock
-    insecure = (request.args.get('insecure') or '0') == '1'
-    data, derr = _cp68_download_zip(scope, insecure)
-    if derr:
-        return jsonify({"error": f"Download failed: {derr}"}), 502
-
-    try:
-        zf = zipfile.ZipFile(io.BytesIO(data))
-        # pick first .txt entry
-        txt_name = None
-        for n in zf.namelist():
-            if n.lower().endswith('.txt'):
-                txt_name = n
-                break
-        if not txt_name:
-            return jsonify({"error": "No TXT file in ZIP"}), 500
-        with zf.open(txt_name, 'r') as f:
-            raw = f.read()
-        # try utf-8 then fallback latin-1
-        try:
-            text = raw.decode('utf-8')
-        except Exception:
-            text = raw.decode('latin-1')
-    except Exception as e:
-        return jsonify({"error": f"Unzip failed: {e}"}), 500
-
-    lines = [ln.strip() for ln in text.splitlines() if ln.strip()]
-    out = []
-    # skip header if present
-    start_idx = 0
-    if lines and lines[0].lower().startswith('<ticker>'):
-        start_idx = 1
-    for ln in lines[start_idx:]:
-        parts = ln.split(',')
-        if len(parts) < 7:
-            continue
-        sym = parts[0].strip().upper()
-        yyyymmdd = parts[1].strip()
-        if yyyymmdd == '00000000':
-            continue
-        try:
-            dt = datetime.strptime(yyyymmdd, '%Y%m%d').date()
-        except Exception:
-            continue
-        if d_from and dt < d_from:
-            continue
-        if d_to and dt > d_to:
-            continue
-        if sym_set and sym not in sym_set:
-            continue
-        def to_float(x):
-            try:
-                return float(x)
-            except Exception:
-                return None
-        def to_int(x):
-            try:
-                return int(float(x))
-            except Exception:
-                return None
-        o = to_float(parts[2]); h = to_float(parts[3]); l = to_float(parts[4]); c = to_float(parts[5]); v = to_int(parts[6])
-        out.append({
-            'symbol': sym,
-            'date': dt.isoformat(),
-            'open': o,
-            'high': h,
-            'low': l,
-            'close': c,
-            'volume': v
-        })
-
-    if fmt == 'parquet':
-        try:
-            import pandas as _pd
-            df = _pd.DataFrame(out)
-            if df.empty:
-                # still return an empty parquet
-                df = _pd.DataFrame(columns=['symbol','date','open','high','low','close','volume'])
-            bio = io.BytesIO()
-            try:
-                df.to_parquet(bio, index=False)
-            except Exception as e:
-                return jsonify({"error": f"Parquet export requires pyarrow/fastparquet: {e}"}), 501
-            bio.seek(0)
-            return Response(bio.read(), mimetype='application/octet-stream')
-        except Exception as e:
-            return jsonify({"error": str(e)}), 500
-
-    # JSON output
-    if group_by:
-        grouped = {}
-        for r in out:
-            grouped.setdefault(r['symbol'], []).append({k: r[k] for k in ('date','open','high','low','close','volume')})
-        cache.set(cache_key, grouped, ttl=300)
-        return Response(json.dumps(grouped, ensure_ascii=False), mimetype='application/json; charset=utf-8')
-    else:
-        cache.set(cache_key, out, ttl=300)
-        return Response(json.dumps(out, ensure_ascii=False), mimetype='application/json; charset=utf-8')
 
 def _cp68_download_zip(scope: str, insecure: bool = False):
     try:
@@ -1351,24 +1218,25 @@ def _cp68_parse_txt_from_zip(raw_zip_bytes: bytes):
 
 @app.route('/api/cp68/eod/export', methods=['POST','GET'])
 def api_cp68_eod_export():
-    """Build a local dataset from CoPhieu68 EOD ZIP.
-    Query/body (either):
-      - scope: all|last (default: last)
-      - base: output base dir (default: backend/dataset)
-      - mode: append|overwrite (default: append)
-      - format: parquet (default)
-    Writes per-symbol Parquet: {base}/{SYMBOL}/D.parquet
-    Deduplicates by (date).
-    """
-    # accept both GET and POST for convenience in demos
-    scope = (request.values.get('scope') or request.args.get('scope') or 'last').lower()
-    base = request.values.get('base') or request.args.get('base') or str(Path(__file__).resolve().parent / 'dataset')
-    mode = (request.values.get('mode') or request.args.get('mode') or 'append').lower()
-    fmt = (request.values.get('format') or request.args.get('format') or 'parquet').lower()
+    """Build a local dataset from CoPhieu68 EOD ZIP."""
+    
+    # --- BẮT ĐẦU SỬA LỖI ---
+    # Lấy dữ liệu từ JSON body nếu là POST, hoặc từ URL params nếu là GET
+    if request.is_json:
+        data = request.get_json() or {}
+    else:
+        data = request.values or {}
+        
+    scope = (data.get('scope') or 'last').lower()
+    base = data.get('base') or str(Path(__file__).resolve().parent / 'dataset')
+    mode = (data.get('mode') or 'append').lower()
+    insecure = str(data.get('insecure', '0')) == '1'
+    fmt = (data.get('format') or 'parquet').lower()
+    # --- KẾT THÚC SỬA LỖI ---
+
     if fmt != 'parquet':
         return jsonify({"error": "Only parquet is supported for export"}), 400
 
-    insecure = ((request.values.get('insecure') or request.args.get('insecure') or '0') == '1')
     raw, err = _cp68_download_zip(scope, insecure)
     if err:
         return jsonify({"error": f"Download failed: {err}"}), 502
@@ -1385,6 +1253,20 @@ def api_cp68_eod_export():
         if len(parts) < 7:
             continue
         sym = parts[0].strip().upper()
+
+        # --- BẮT ĐẦU NÂNG CẤP (PHIÊN BẢN MỚI) ---
+        original_sym = parts[0].strip().upper() # Giữ lại tên gốc để kiểm tra
+        sym = original_sym
+        symbol_type = 'STOCK' # Mặc định là cổ phiếu
+
+        if original_sym.startswith('^'):
+            sym = original_sym[1:] # Bỏ dấu '^' cho tên mã sạch
+            if 'INDEX' in sym or sym in ['VN30', 'HNX30', 'UPCOM', 'HASTC']:
+                symbol_type = 'INDEX'
+            else:
+                symbol_type = 'SECTOR'
+        # --- KẾT THÚC NÂNG CẤP ---
+
         yyyymmdd = parts[1].strip()
         if yyyymmdd == '00000000':
             continue
@@ -1401,10 +1283,9 @@ def api_cp68_eod_export():
         except Exception:
             v = None
         rows.append({
-            'symbol': sym, 'date': dt, 'open': o, 'high': h, 'low': l, 'close': c, 'volume': v
+            'symbol': sym, 'date': dt, 'open': o, 'high': h, 'low': l, 'close': c, 'volume': v, 'type': symbol_type
         })
 
-    # Build per-symbol parquet
     try:
         import pandas as _pd
     except Exception as e:
@@ -1427,13 +1308,11 @@ def api_cp68_eod_export():
                     df = _pd.concat([old, df], ignore_index=True)
                 except Exception:
                     pass
-            # deduplicate by date
             if 'date' in df.columns:
                 df = df.drop_duplicates(subset=['date']).sort_values('date')
             try:
                 df.to_parquet(out_file, index=False)
             except Exception as e:
-                # Fallback to CSV if parquet not available
                 try:
                     df.to_csv(out_dir / 'D.csv', index=False)
                     errors[str(sym)] = f"parquet failed, wrote CSV instead: {e}"
@@ -1443,6 +1322,18 @@ def api_cp68_eod_export():
             written += 1
         except Exception as e:
             errors[str(sym)] = str(e)
+
+    # --- BẮT ĐẦU THÊM MÃ TẠO MANIFEST ---
+    try:
+        manifest_data = df_all[['symbol', 'type']].drop_duplicates().to_dict(orient='records')
+        manifest_path = Path(base) / '_manifest.json'
+        with open(manifest_path, 'w', encoding='utf-8') as f:
+            import json
+            json.dump(manifest_data, f, ensure_ascii=False, indent=2)
+        print(f"Đã tạo manifest thành công tại: {manifest_path}")
+    except Exception as e:
+        print(f"Lỗi khi tạo manifest: {e}")
+    # --- KẾT THÚC THÊM MÃ TẠO MANIFEST ---
 
     return jsonify({"ok": True, "written": written, "base": base, "errors": errors})
 
@@ -1464,48 +1355,94 @@ def api_dataset_symbols():
 
 @app.route('/api/dataset/candles')
 def api_dataset_candles():
-    """Read candles from local dataset parquet quickly.
-    Query: symbol, from (YYYY-MM-DD), to (YYYY-MM-DD), base (default backend/dataset), limit
-    Returns flat JSON [{date,open,high,low,close,volume}]
-    """
     symbol = (request.args.get('symbol') or '').strip().upper()
     if not symbol:
         return jsonify({"error": "symbol is required"}), 400
+    
     base = request.args.get('base') or str(Path(__file__).resolve().parent / 'dataset')
     f_parquet = Path(base) / symbol / 'D.parquet'
     f_csv = Path(base) / symbol / 'D.csv'
+
+    print(f"\n--- BẮT ĐẦU GỠ LỖI cho /api/dataset/candles ---")
+    print(f"Mã yêu cầu: {symbol}")
+    print(f"Đường dẫn file Parquet: {f_parquet}")
+
     if not f_parquet.exists() and not f_csv.exists():
+        print(f"-> KẾT QUẢ: Không tìm thấy file cho mã {symbol}. Trả về mảng rỗng.")
         return jsonify([])
-    frm = request.args.get('from'); to = request.args.get('to')
+
+    frm = request.args.get('from')
+    to = request.args.get('to')
     limit = request.args.get('limit')
+
     try:
         import pandas as _pd
         if f_parquet.exists():
+            print(f"Đang đọc file Parquet...")
             df = _pd.read_parquet(f_parquet)
         else:
+            print(f"Đang đọc file CSV...")
             df = _pd.read_csv(f_csv)
-        # ensure required cols
-        for c in ['date','open','high','low','close','volume']:
-            if c not in df.columns:
-                df[c] = None
-        # filter by date range if provided
+        
+        print(f"-> Đọc file thành công. Số dòng ban đầu: {len(df)}")
+        if not df.empty:
+            print(f"   Dữ liệu từ ngày {df['date'].min()} đến {df['date'].max()}")
+
+        # Lọc theo ngày
         if frm:
             df = df[df['date'] >= frm]
+            print(f"-> Sau khi lọc 'từ ngày' {frm}, còn lại: {len(df)} dòng")
         if to:
             df = df[df['date'] <= to]
+            print(f"-> Sau khi lọc 'đến ngày' {to}, còn lại: {len(df)} dòng")
+        
         df = df.sort_values('date')
+
         if limit:
             try:
                 n = int(limit)
                 if n > 0:
                     df = df.tail(n)
+                    print(f"-> Sau khi giới hạn {n} dòng, còn lại: {len(df)} dòng")
             except Exception:
                 pass
-        out = df[['date','open','high','low','close','volume']].to_dict(orient='records')
+        
+        out = df[['date', 'open', 'high', 'low', 'close', 'volume']].to_dict(orient='records')
+        print(f"-> KẾT QUẢ CUỐI CÙNG: Trả về {len(out)} dòng dữ liệu.")
         return jsonify(out)
+        
     except Exception as e:
+        print(f"-> LỖI TRONG QUÁ TRÌNH XỬ LÝ: {e}")
         return jsonify({"error": str(e)}), 500
+    
+@app.route('/api/dataset/symbols_with_type')
+def api_dataset_symbols_with_type():
+    """
+    Đọc và trả về danh sách các mã cùng với loại của chúng từ manifest.
+    """
+    base = request.args.get('base') or str(Path(__file__).resolve().parent / 'dataset')
+    manifest_path = Path(base) / '_manifest.json'
 
+    if not manifest_path.exists():
+        # Fallback: Tự quét thư mục nếu manifest không tồn tại (chậm hơn)
+        print("Cảnh báo: Không tìm thấy file _manifest.json. Đang quét thư mục...")
+        p = Path(base)
+        syms = []
+        if p.exists():
+            for child in p.iterdir():
+                if child.is_dir() and ((child / 'D.parquet').exists() or (child / 'D.csv').exists()):
+                    # Mặc định là STOCK nếu không có thông tin
+                    syms.append({'symbol': child.name, 'type': 'STOCK'})
+        return jsonify(syms)
+
+    try:
+        with open(manifest_path, 'r', encoding='utf-8') as f:
+            import json
+            data = json.load(f)
+        return jsonify(data)
+    except Exception as e:
+        return jsonify({"error": f"Không thể đọc file manifest: {e}"}), 500
+    
 if __name__ == '__main__':
     app.run(debug=True, port=5000)
 

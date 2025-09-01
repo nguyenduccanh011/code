@@ -11,7 +11,7 @@
       { label: 'FireAnt Quotes', href: 'fireant-quotes.html' },
       { label: 'Screener', href: 'screener.html' },
       { label: 'Industry Demo', href: 'industry-demo.html' },
-      { label: 'CP68 EOD Demo', href: 'cp68-demo.html' },
+      { label: 'CP68 EOD Demo', href: 'cp68-stable.html' },
     ]},
     { group: 'Công ty', items: [
       { label: 'Hồ sơ công ty', href: 'company-profile.html' },

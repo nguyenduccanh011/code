@@ -1,119 +1,0 @@
-<!DOCTYPE html>
-<html lang="vi">
-<head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>CP68 EOD Demo</title>
-  <link rel="stylesheet" href="style.css" />
-  <link rel="stylesheet" href="css/site-nav.css" />
-  <style>
-    body { font-family: system-ui, Arial, sans-serif; background:#0b1020; color:#dfe8ff; }
-    .wrap { max-width: 1200px; margin: 12px auto; padding: 0 12px; }
-    .bar { display:flex; flex-wrap:wrap; gap:8px; align-items:center; margin-bottom: 10px; }
-    .bar .group { display:flex; align-items:center; gap:0; }
-    input, select, button { padding:6px 8px; }
-    #log { font-size:12px; opacity:.8; margin-left:auto; }
-    .grid { display:grid; grid-template-columns: 1fr; gap:0; }
-    .panel { background:#111735; border:1px solid #26304f; border-radius:10px; padding:4px 8px; }
-    .panel h3 { margin: 0 0 2px; color:#bfe1ff; font-size:13px; }
-    #macd-panel > h3, #rsi-panel > h3 { display:none; }
-    #chart-macd, #chart-rsi { margin-top:0; }
-    #chart { height: 460px; }
-    table { width:100%; border-collapse:collapse; font-size:12px; }
-    th, td { padding:6px 8px; border-bottom:1px solid #26304f; }
-    th { text-align:left; color:#9fc1ff; }
-  </style>
-  <script>
-    window.API_PROXY_BASE = localStorage.getItem('API_PROXY_BASE') || 'http://127.0.0.1:5000';
-  </script>
-  <script defer src="https://unpkg.com/lightweight-charts@4.1.0/dist/lightweight-charts.standalone.production.js"></script>
-  <script defer src="src/core/DataProvider.js"></script>
-  <script defer src="src/core/ChartSyncManager.js"></script>
-  <script defer src="src/indicators/MAIndicator.js"></script>
-  <script defer src="src/indicators/BollingerBandsIndicator.js"></script>
-  <script defer src="src/pages/cp68-demo.js"></script>
-</head>
-<body>
-  <script src="src/ui/site-nav.js" defer></script>
-  <div class="wrap">
-    <h1>CP68 EOD Demo</h1>
-    <div class="bar">
-      <div class="group">
-        <label>M�:</label>
-        <div style="position:relative">
-          <input id="symbol" size="14" value="AAA" placeholder="Nh?p m�... (VD: FPT)" autocomplete="off" />
-          <div id="cp68-search-suggestions" class="suggestions-container" style="position:absolute;top:30px;left:0;right:0;background:#111735;border:1px solid #26304f;border-radius:8px;display:none;max-height:240px;overflow:auto;z-index:50"></div>
-        </div>
-        <button id="btn-draw">V?</button>
-      </div>`n        </div>`n        <button id="btn-draw">V?</button>
-      </div>
-      <div class="group" style="position:relative">
-        <button id="btn-indicators">Ch? b�o ?</button>
-        <div id="ind-dropdown" style="display:none; position:absolute; top:36px; left:0; background:#111735; border:1px solid #26304f; border-radius:8px; padding:6px; z-index:20; min-width:220px">
-          <div><button class="ind-item" data-type="ma">�u?ng MA�</button></div>
-          <div><button class="ind-item" data-type="bb">Bollinger Bands…</button></div>
-          <div><button class="ind-item" data-type="rsi">RSI…</button></div>
-          <div><button class="ind-item" data-type="macd">MACD…</button></div>
-        </div>
-        <div id="ind-active" style="display:flex; gap:0; align-items:center; flex-wrap:wrap; margin-left:8px"></div>
-      </div>
-      <div class="group" style="gap:10px">
-        <label><input type="checkbox" id="opt-ma" checked /> MA1</label>
-        <label>Kỳ: <input type=umber" id="ma-period" value="20" min="1" style="width:80px" /></label>
-        <label><input type="checkbox" id="opt-ma2" /> MA2</label>
-        <label>Kỳ: <input type=umber" id="ma2-period" value="50" min="1" style="width:80px" /></label>
-        <label><input type="checkbox" id="opt-ma3" /> MA3</label>
-        <label>Kỳ: <input type=umber" id="ma3-period" value="200" min="1" style="width:80px" /></label>
-        <label><input type="checkbox" id="opt-bb" /> BB</label>
-        <label>Period: <input type=umber" id="bb-period" value="20" min="1" style="width:80px" /></label>
-        <label>Dev: <input type=umber" id="bb-dev" value="2" min="0.1" step="0.1" style="width:80px" /></label>
-        <label><input type="checkbox" id="opt-macd" /> MACD</label>
-        <label>Fast: <input type=umber" id="macd-fast" value="12" min="1" style="width:70px" /></label>
-        <label>Slow: <input type=umber" id="macd-slow" value="26" min="1" style="width:70px" /></label>
-        <label>Signal: <input type=umber" id="macd-signal" value="9" min="1" style="width:70px" /></label>
-        <label><input type="checkbox" id="opt-rsi" /> RSI</label>
-        <label>Period: <input type=umber" id="rsi-period" value="14" min="1" style="width:80px" /></label>
-      </div>
-      <div id="log"></div>
-    </div>
-    <div class="grid">
-      <div class="panel">
-        <h3>Biểu đồ</h3>
-        <div id="chart"></div>
-      </div>
-        <div class="panel" id="macd-panel" style="display:none">
-          <h3>MACD</h3>
-          <div id="chart-macd" style="height:220px"></div>
-        </div>
-        <div class="panel" id="rsi-panel" style="display:none">
-          <h3>RSI</h3>
-          <div id="chart-rsi" style="height:180px"></div>
-        </div>
-        <div class="panel">
-          <h3>Thông tin</h3>
-          <table>
-          <thead>
-            <tr><th>Mã</th><th>Số dòng</th><th>Ngày đầu</th><th>Ngày cuối</th></tr>
-          </thead>
-          <tbody id="info"></tbody>
-        </table>
-      </div>
-    </div>
-  </div>
-</body>
-</html>
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
