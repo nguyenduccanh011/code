@@ -35,6 +35,7 @@ Tài liệu này mô tả cách chúng ta làm việc để dự án trơn tru, 
 - Compile check: `python -c "import py_compile; py_compile.compile('backend/server.py', doraise=True)"`
 - Unit tests: `python -m unittest discover -s backend/tests -p "test_*.py"`
 - For JS changes, run: `node tests/run-js-tests.mjs`
+ - If you hit local issues (encoding/ports/proxy), see `docs/TROUBLESHOOTING.md`.
 
 ## CI recommendations
 - Validate UTF‑8 (no BOM) and LF line endings for source files.

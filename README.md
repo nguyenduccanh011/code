@@ -60,3 +60,7 @@ Xem `docs/ROADMAP.md` (đã ghi lại các mốc đã hoàn thành và kế ho�
 
 ## Bản quyền
 Mã nguồn demo phục vụ mục đích học tập/nghiên cứu dữ liệu thị trường Việt Nam.
+ 
+## Troubleshooting
+- Xem hướng dẫn nhanh: `docs/TROUBLESHOOTING.md`.
+- Lưu ý UTF‑8 trên Windows (PowerShell dùng `Get-Content -Encoding UTF8` hoặc `chcp 65001`).
