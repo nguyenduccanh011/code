@@ -3,8 +3,10 @@
 This project follows the guidelines in AGENTS.md (Vietnamese). Below is a short summary in English with actionable steps.
 
 ## Workflow
-- Create focused branches per feature/fix.
+- Solo mode: commit directly to `main` for small, isolated changes; create short-lived branches for larger work. PRs are optional.
+- Create focused branches per feature/fix when needed.
 - Keep commits clear and scoped; reference issues if applicable.
+- Use the plan tool (update_plan) to outline steps for non-trivial tasks.
 - Before committing, run tests locally.
 
 ## Directory Structure
@@ -22,6 +24,7 @@ This project follows the guidelines in AGENTS.md (Vietnamese). Below is a short 
 - JavaScript (Node 18+): `node tests/run-js-tests.mjs`
 - Python (3.9+): `python -m unittest discover -s backend/tests -p "test_*.py" -v`
 - Combined (if PowerShell blocks npm scripts): `cmd /c npm test`
+- See `docs/WORKFLOW.md` for execution order and verification steps.
 
 ## Backend Environment
 Install dependencies:
@@ -38,4 +41,3 @@ pip install -r backend/requirements.txt
 - [ ] Code builds and runs locally
 - [ ] Tests pass (`npm test` or individual commands above)
 - [ ] Updated docs if behavior or APIs changed
-

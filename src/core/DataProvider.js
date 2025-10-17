@@ -2,10 +2,16 @@
 
 console.log("DataProvider.js đã được nạp.");
 
-let API_BASE_URL =
-    (typeof process !== 'undefined' && process.env && process.env.API_BASE_URL)
-        || (typeof window !== 'undefined' && window.API_BASE_URL)
-        || 'http://127.0.0.1:5000';
+// Resolve API base URL with support for empty-string (same-origin)
+let API_BASE_URL = (() => {
+    if (typeof window !== 'undefined' && Object.prototype.hasOwnProperty.call(window, 'API_BASE_URL')) {
+        return window.API_BASE_URL; // allow '' for same-origin
+    }
+    if (typeof process !== 'undefined' && process.env && Object.prototype.hasOwnProperty.call(process.env, 'API_BASE_URL')) {
+        return process.env.API_BASE_URL;
+    }
+    return 'http://127.0.0.1:5000';
+})();
 
 class DataProvider {
     constructor(apiBaseUrl) {

@@ -276,6 +276,8 @@ async function initialLoad(symbol, timeframe) {
     if (chartLoadingEl) chartLoadingEl.style.display = 'flex';
     document.getElementById('symbol-display').textContent = symbol.toUpperCase();
     document.getElementById('symbol-description').textContent = "Đang tải tên công ty...";
+    // Ensure correct placeholder in UTF-8
+    document.getElementById('symbol-description').textContent = "Đang tải tên công ty...";
     mainChart.applyOptions({ watermark: { text: symbol.toUpperCase() } });
 
     // Dòng updateSidebar(symbol) cũ đã bị xóa khỏi đây.
@@ -284,8 +286,13 @@ async function initialLoad(symbol, timeframe) {
     const companyInfoPromise = dataProvider.getCompanyInfo(symbol);
 
     const [data, companyName] = await Promise.all([historyPromise, companyInfoPromise]);
-    
-    document.getElementById('symbol-description').textContent = companyName;
+
+    // Prefer a known-good description for VNINDEX to avoid fallback mojibake
+    if ((symbol || '').toUpperCase() === 'VNINDEX') {
+        document.getElementById('symbol-description').textContent = 'Chỉ số VN-Index, Sở Giao dịch Chứng khoán TPHCM';
+    } else {
+        document.getElementById('symbol-description').textContent = companyName;
+    }
 
     initialLoadCompleted = false;
     if (!data || data.length === 0) {

@@ -1,9 +1,9 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="vi">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Danh sách Algo</title>
+    <title>Danh sÃ¡ch Algo</title>
     <link rel="stylesheet" href="css/style.css">
     <link rel="stylesheet" href="css/algo-list.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" integrity="sha512-p+1RqYTxNOLXgq0fsE4zMDQLWcVFOPJz1D8SSsPyozJzDPbpe2T19ZLxNblLJjRwvxw9Y+QSIOcoPqW9J5XhMg==" crossorigin="anonymous" referrerpolicy="no-referrer" />
@@ -13,19 +13,19 @@
         <div class="left-header">
             <div class="symbol-info">
                 <strong>Algo Manager</strong>
-                <span>Quản lý chiến lược</span>
+                <span>Quáº£n lÃ½ chiáº¿n lÆ°á»£c</span>
             </div>
         </div>
         <div class="right-header">
             <div class="strategy-selector">
-                <button class="tool-button" onclick="window.location.href='index.html'">Biểu đồ</button>
+                <button class="tool-button" onclick="window.location.href='index.html'">Biá»ƒu Ä‘á»“</button>
                 <button class="tool-button" id="strategy-builder-btn">Strategy Builder</button>
             </div>
         </div>
     </header>
     <div class="algo-page">
         <div class="algo-header">
-            <h2>Danh sách algo</h2>
+            <h2>Danh sÃ¡ch algo</h2>
             <button id="authorize-algo-btn" class="action-btn primary">
                 <i class="fa fa-plus"></i> Authorize Algo
             </button>
@@ -34,20 +34,21 @@
             <thead>
                 <tr>
                     <th>STT</th>
-                    <th>Tên</th>
-                    <th>Mã</th>
-                    <th>Nền tảng</th>
+                    <th>TÃªn</th>
+                    <th>MÃ£</th>
+                    <th>Ná»n táº£ng</th>
                     <th>Winrate</th>
                     <th>MDD</th>
-                    <th>Lợi nhuận</th>
-                    <th>Tăng/giảm</th>
-                    <th>Thao tác</th>
+                    <th>Lá»£i nhuáº­n</th>
+                    <th>TÄƒng/giáº£m</th>
+                    <th>Thao tÃ¡c</th>
                 </tr>
             </thead>
             <tbody id="algo-table-body"></tbody>
         </table>
     </div>
     <script src="src/core/StrategyEngine.js"></script>
+    <script src="config.js"></script>
     <script src="src/core/DataProvider.js"></script>
     <script>
     var dataProvider = new DataProvider();
@@ -63,59 +64,59 @@
         </div>
         <div class="strategy-builder-content">
             <div class="strategy-name-section">
-                <label for="strategy-name">Tên chiến lược:</label>
-                <input type="text" id="strategy-name" placeholder="Nhập tên chiến lược..." value="SMA Crossover Strategy">
+                <label for="strategy-name">TÃªn chiáº¿n lÆ°á»£c:</label>
+                <input type="text" id="strategy-name" placeholder="Nháº­p tÃªn chiáº¿n lÆ°á»£c..." value="SMA Crossover Strategy">
             </div>
 
             <div class="strategy-code-section">
-                <label for="strategy-code">Mã chứng khoán:</label>
+                <label for="strategy-code">MÃ£ chá»©ng khoÃ¡n:</label>
                 <input type="text" id="strategy-code" placeholder="VD: FPT">
             </div>
 
             <div class="conditions-section">
-                <h4>Điều kiện mua (BUY):</h4>
+                <h4>Äiá»u kiá»‡n mua (BUY):</h4>
                 <div id="buy-conditions" class="conditions-container">
                     <div class="condition-item">
                         <select class="condition-type">
                             <option value="sma-crossover">SMA Crossover</option>
                             <option value="rsi">RSI</option>
-                            <option value="price">Giá</option>
+                            <option value="price">GiÃ¡</option>
                         </select>
                         <div class="condition-params">
                             <input type="number" class="param-input" placeholder="9" min="1" max="100">
-                            <span>cắt lên</span>
+                            <span data-direction="up">Cắt lên</span>
                             <input type="number" class="param-input" placeholder="20" min="1" max="100">
                         </div>
                         <button class="remove-condition-btn">&times;</button>
                     </div>
                 </div>
-                <button id="add-buy-condition" class="add-condition-btn">+ Thêm điều kiện</button>
+                <button id="add-buy-condition" class="add-condition-btn">+ ThÃªm Ä‘iá»u kiá»‡n</button>
             </div>
 
             <div class="conditions-section">
-                <h4>Điều kiện bán (SELL):</h4>
+                <h4>Äiá»u kiá»‡n bÃ¡n (SELL):</h4>
                 <div id="sell-conditions" class="conditions-container">
                     <div class="condition-item">
                         <select class="condition-type">
                             <option value="sma-crossover">SMA Crossover</option>
                             <option value="rsi">RSI</option>
-                            <option value="price">Giá</option>
+                            <option value="price">GiÃ¡</option>
                         </select>
                         <div class="condition-params">
                             <input type="number" class="param-input" placeholder="9" min="1" max="100">
-                            <span>cắt xuống</span>
+                            <span data-direction="down">Cắt xuống</span>
                             <input type="number" class="param-input" placeholder="20" min="1" max="100">
                         </div>
                         <button class="remove-condition-btn">&times;</button>
                     </div>
                 </div>
-                <button id="add-sell-condition" class="add-condition-btn">+ Thêm điều kiện</button>
+                <button id="add-sell-condition" class="add-condition-btn">+ ThÃªm Ä‘iá»u kiá»‡n</button>
             </div>
 
             <div class="strategy-actions">
                 <button id="test-strategy-btn" class="action-btn primary">Test Strategy</button>
-                <button id="save-strategy-btn" class="action-btn">Lưu Strategy</button>
-                <button id="load-strategy-btn" class="action-btn">Tải Strategy</button>
+                <button id="save-strategy-btn" class="action-btn">LÆ°u Strategy</button>
+                <button id="load-strategy-btn" class="action-btn">Táº£i Strategy</button>
             </div>
         </div>
     </div>

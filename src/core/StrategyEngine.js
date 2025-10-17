@@ -64,10 +64,16 @@ class StrategyEngine {
         switch (type) {
             case 'sma-crossover':
                 if (paramInputs.length >= 2) {
+                    const dirEl = item.querySelector('.condition-params span');
+                    const dir = (dirEl && (dirEl.dataset && dirEl.dataset.direction))
+                      || (dirEl && dirEl.textContent && dirEl.textContent.toLowerCase())
+                      || 'up';
+                    // Normalize to enum keys used by logic/backend
+                    const direction = dir.includes('down') || dir.includes('xuong') ? 'down' : 'up';
                     return {
                         shortPeriod: parseInt(paramInputs[0].value) || 9,
                         longPeriod: parseInt(paramInputs[1].value) || 20,
-                        direction: item.querySelector('.condition-params span').textContent.trim()
+                        direction
                     };
                 }
                 break;
