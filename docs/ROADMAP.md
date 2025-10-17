@@ -1,38 +1,33 @@
 # Roadmap
 
-This document summarizes the next steps to expand the app with market, screener, and fundamentals features, building on the new backend APIs and frontend refactors.
+Tài liệu theo dõi các hạng mục đã làm và kế hoạch tiếp theo.
 
-## Phase 1 — Data + Basic UI
+## Đã hoàn thành (Aug 2025)
 
-- Screener UI: table view with selectable columns, paging, and CSV export
-- Financials tab: Income/Balance charts + last 8 periods table
-- Ratios tab: key valuation/profitability ratios + mini trends
-- Persist user choices (columns, page size) in localStorage
+- Hợp nhất server (backend/serve.py), mặc định chạy cổng 5000.
+- Thêm thanh điều hướng dùng chung (site-nav) cho tất cả trang demo.
+- Sửa lỗi mã hóa tiếng Việt (UTF‑8) trên nhiều trang.
+- Bảng giá (Price Board): chuẩn hóa file, dùng nguồn VCBS qua proxy.
+- Thêm nhóm API Ngành: `/api/industry/list|stocks|lastest` + auto load giá ở frontend.
+- Proxy server: VCBS, VNDirect, CafeF, Vietstock, FireAnt, MBS, TVSI.
+- Cải tiến cache (screener/price_board/industry), batch→per‑symbol fallback.
 
-## Phase 2 — Market Overview
+## Kế hoạch ngắn hạn
 
-- Heatmap by industry/exchange (color: %change, area: market cap)
-- Top lists (gainers/losers/volume) with quick filters
-- Index/ETF panel
+- Health check: `/health` cho backend và proxy.
+- Lazy‑init `vnstock` (Listing/Trading) để giảm phụ thuộc mạng khi khởi động.
+- Tính ±/% phía client từ `listing_ref_price` khi upstream không trả `change`.
+- Cache thông minh cho `/api/industry/lastest` theo nhóm mã (ETag/keyset).
+- Gói build demo (gh-pages hoặc static server) để thử nhanh.
 
-## Phase 3 — Usability & Analysis
+## Trung hạn
 
-- Watchlist with mini sparklines
-- Compare multiple symbols (normalize to 100, overlay indicators)
-- Alerts: simple price/MA threshold (polling)
+- Market overview: heatmap theo ngành/sàn, top gainers/losers/volume.
+- Watchlist + so sánh đa mã (normalize 100, overlay indicators).
+- Alerts đơn giản (polling).
 
-## Technical Tasks
+## Ghi chú kỹ thuật
 
-- Backend: finalize /api/screener cleaning (NaN→null, round numbers); enforce UTF‑8 JSON
-- Backend: financials/ratios mappings for vnstock version 3.2.3; consider cashflow if available in future versions
-- Frontend: adopt AppUtils.time/format everywhere; finish splitting applyDataToChart
-- Frontend: modularize Sidebar/Search/Indicator UI; add TrendLineController module
-
-## Milestones
-
-1. Screener page MVP (table + column presets + paging)
-2. Symbol detail: Financials/Ratios tabs
-3. Market Overview: Heatmap + Top lists
-4. Watchlist + Compare
-5. Alerts (basic)
-
+- Chuẩn hóa tên cột từ `Trading.price_board` (MultiIndex) → tên phẳng có hậu tố.
+- Khi dữ liệu có phong cách VCBS (`listing_*`, `match_*`), ưu tiên `listing_symbol`, `match_avg_match_price`, `match_accumulated_volume`.
+- Frontend mặc định `API_PROXY_BASE = http://127.0.0.1:5000`; có thể override qua localStorage.

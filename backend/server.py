@@ -12,8 +12,16 @@ import json
 import re
 import time
 from pathlib import Path
+import io
+import zipfile
 
 from cache_manager import CacheManager
+
+# Safe defaults for optional managers loaded at startup
+listing_manager = None
+all_companies_df = None
+industries_df = None
+trading_manager = None
 
 
 class BacktestingEngine:
@@ -252,7 +260,8 @@ def get_company_info():
             company_name = all_companies_df.loc[symbol]['organ_name']
             return jsonify({"fullName": company_name})
         else:
-            return jsonify({"fullName": f"KhÃ´ng tÃ¬m tháº¥y tÃªn cho mÃ£ {symbol}"})
+            # Return UTF-8 Vietnamese fallback for unknown symbols
+            return jsonify({"fullName": f"Không tìm thấy tên cho mã {symbol}"})
     except Exception as e:
         print(f"Error looking up info for {symbol}: {e}")
         return jsonify({"error": str(e)}), 500
@@ -731,6 +740,673 @@ def run_backtest():
     return jsonify(result)
 
 
+@app.route('/api/industry/list')
+def api_industry_list():
+    """Danh sách ngành (ICB/industry/sector) nếu có."""
+    global industries_df, listing_manager, all_companies_df
+    # Đảm bảo dữ liệu listing/industry sẵn sàng
+    try:
+        if listing_manager is None:
+            listing_manager = Listing()
+        if industries_df is None:
+            tmp = listing_manager.symbols_by_industries()
+            tmp.set_index('symbol', inplace=True)
+            industries_df = tmp
+    except Exception:
+        pass
+    def _has_letter(s: str) -> bool:
+        return any(('A' <= ch <= 'Z') or ('a' <= ch <= 'z') or ('À' <= ch <= 'ỹ') for ch in s)
+
+    def _clean(arr):
+        cleaned = []
+        for s in arr:
+            if not s:
+                continue
+            st = str(s).strip()
+            if not st or st.upper() == 'NAN':
+                continue
+            # Loại các mã/nhãn thuần số (ví dụ icb_code4 như 9000, 9530...)
+            if not _has_letter(st):
+                continue
+            cleaned.append(st)
+        # unique + sort
+        return sorted({x for x in cleaned})
+
+    out = []
+    try:
+        if industries_df is not None:
+            cols_map = {c.lower(): c for c in industries_df.columns}
+            # Ưu tiên các cột chuẩn
+            for c in ['icb_name', 'industry_name', 'industry', 'sector_name']:
+                if c in cols_map:
+                    real = cols_map[c]
+                    ser = industries_df[real].dropna().astype(str)
+                    out = _clean(ser.tolist())
+                    break
+            # Fallback: gom từ mọi cột có chứa từ khóa industry/sector/icb
+            if not out:
+                cand_cols = [col for col in industries_df.columns if any(k in col.lower() for k in ['industry', 'sector', 'icb'])]
+                vals = []
+                for col in cand_cols:
+                    try:
+                        ser = industries_df[col].dropna().astype(str).tolist()
+                        vals.extend(ser)
+                    except Exception:
+                        continue
+                out = _clean(vals)
+    except Exception:
+        out = []
+    # As a last resort, thử lôi từ all_companies_df nếu có
+    if not out and all_companies_df is not None:
+        try:
+            cand_cols = [col for col in all_companies_df.columns if any(k in str(col).lower() for k in ['industry', 'sector', 'icb'])]
+            vals = []
+            for col in cand_cols:
+                try:
+                    ser = all_companies_df[col].dropna().astype(str).tolist()
+                    vals.extend(ser)
+                except Exception:
+                    continue
+            out = _clean(vals)
+        except Exception:
+            pass
+    out = sorted({s for s in out})
+    return jsonify({"industries": out})
+
+
+@app.route('/api/industry/stocks')
+def api_industry_stocks():
+    """Danh sách mã thuộc một ngành: trả về {code, companyName, floor}."""
+    global industries_df, listing_manager, all_companies_df
+    name = (request.args.get('industry') or '').strip()
+    if not name:
+        return jsonify({"data": []})
+    try:
+        if listing_manager is None:
+            listing_manager = Listing()
+        if industries_df is None:
+            tmp = listing_manager.symbols_by_industries()
+            tmp.set_index('symbol', inplace=True)
+            industries_df = tmp
+        if all_companies_df is None:
+            ac = listing_manager.symbols_by_exchange()
+            ac.set_index('symbol', inplace=True)
+            all_companies_df = ac
+    except Exception:
+        pass
+    items = []
+    try:
+        if industries_df is not None:
+            import unicodedata as _ud
+            def _norm(s):
+                try:
+                    s = ''.join(c for c in _ud.normalize('NFKD', str(s)) if not _ud.combining(c))
+                except Exception:
+                    s = str(s)
+                return s.lower().strip()
+            target = _norm(name)
+            cols = {c.lower(): c for c in industries_df.columns}
+            # Lấy tất cả cột có chứa industry/sector/icb để tăng độ phủ
+            cand_keys = [k for k in cols.keys() if any(t in k for t in ['industry','sector','icb'])]
+            if not cand_keys:
+                cand_keys = list(cols.keys())
+            mask = None
+            for c in cand_keys:
+                real = cols[c]
+                series = industries_df[real].astype(str)
+                ser_norm = series.map(_norm)
+                m = ser_norm == target
+                if len(target) > 1:
+                    m = m | ser_norm.str.contains(target, regex=False)
+                mask = m if mask is None else (mask | m)
+            if mask is not None and getattr(mask, 'any', lambda: False)():
+                syms = industries_df[mask].index.astype(str).str.upper().tolist()
+                for s in syms:
+                    rec = {"code": s}
+                    if all_companies_df is not None and s in all_companies_df.index:
+                        try:
+                            rec['companyName'] = all_companies_df.loc[s].get('organ_name') or ''
+                            rec['floor'] = all_companies_df.loc[s].get('exchange') or ''
+                        except Exception:
+                            pass
+                    items.append(rec)
+    except Exception:
+        items = []
+    return jsonify({"data": items})
+
+
+@app.route('/api/industry/lastest')
+def api_industry_lastest():
+    """Giá hiện tại cho toàn bộ mã thuộc một ngành. Trả về map {SYMB: {...}}"""
+    global industries_df, listing_manager, trading_manager
+    name = (request.args.get('industry') or '').strip()
+    out = {}
+    try:
+        if listing_manager is None:
+            listing_manager = Listing()
+        if industries_df is None:
+            tmp = listing_manager.symbols_by_industries()
+            tmp.set_index('symbol', inplace=True)
+            industries_df = tmp
+        if trading_manager is None:
+            trading_manager = Trading()
+    except Exception:
+        pass
+    try:
+        if not name or industries_df is None or trading_manager is None:
+            return jsonify({"data": out})
+        # Collect symbols for industry
+        import unicodedata as _ud
+        def _norm(s):
+            try:
+                s = ''.join(c for c in _ud.normalize('NFKD', str(s)) if not _ud.combining(c))
+            except Exception:
+                s = str(s)
+            return s.lower().strip()
+        target = _norm(name)
+        cols = {c.lower(): c for c in industries_df.columns}
+        cand_keys = [k for k in cols.keys() if any(t in k for t in ['industry','sector','icb'])]
+        if not cand_keys:
+            cand_keys = list(cols.keys())
+        mask = None
+        for c in cand_keys:
+            real = cols[c]
+            ser_norm = industries_df[real].astype(str).map(_norm)
+            m = ser_norm == target
+            if len(target) > 1:
+                m = m | ser_norm.str.contains(target, regex=False)
+            mask = m if mask is None else (mask | m)
+        if mask is None or (not mask.any()):
+            return jsonify({"data": out})
+        syms = industries_df[mask].index.astype(str).str.upper().tolist()
+        syms = [s for s in syms if s and s.upper() != 'NAN'][:300]
+        if not syms:
+            return jsonify({"data": out})
+        # Try cache first
+        cache_key = f"industry_lastest_{target}_{len(syms)}"
+        cached = cache.get(cache_key)
+        if cached is not None:
+            return jsonify({"data": cached})
+        # Fetch in chunks
+        import math
+        frames = []
+        for i in range(int(math.ceil(len(syms)/80))):
+            part = syms[i*80:(i+1)*80]
+            try:
+                df = trading_manager.price_board(part)
+                if df is not None and not getattr(df, 'empty', True):
+                    frames.append(df)
+            except Exception:
+                df = None
+            # Fallback per-symbol if batch failed/empty
+            if not frames or (df is None or getattr(df, 'empty', True)):
+                for s in part:
+                    try:
+                        f = trading_manager.price_board([s])
+                        if f is not None and not getattr(f, 'empty', True):
+                            frames.append(f)
+                    except Exception:
+                        continue
+        if not frames:
+            return jsonify({"data": out})
+        import pandas as _pd
+        try:
+            df = _pd.concat(frames)
+        except Exception:
+            # if any object different shapes, keep first non-empty
+            df = None
+            for f in frames:
+                if f is not None and not getattr(f, 'empty', True):
+                    df = f if df is None else _pd.concat([df, f], ignore_index=False)
+            if df is None:
+                return jsonify({"data": out})
+        # Flatten
+        if isinstance(df.columns, pd.MultiIndex):
+            new_cols = []
+            for col in df.columns.values:
+                parts = [p for p in col if p]
+                parts = [str(p) for p in parts]
+                new_cols.append('_'.join(parts))
+            df.columns = new_cols
+        else:
+            df.columns = [str(c) for c in df.columns]
+        df = df.reset_index()
+        # một số nguồn để ticker ở index -> đổi sang 'symbol'
+        if 'symbol' not in df.columns and 'index' in df.columns:
+            try:
+                df.rename(columns={'index': 'symbol'}, inplace=True)
+            except Exception:
+                pass
+        # Nếu 'symbol' có vẻ là chỉ số dòng (số) và có cột 'listing_symbol', dùng listing_symbol thay thế
+        try:
+            import re as _re
+            def _looks_numeric_symbol(s):
+                s = str(s)
+                return bool(_re.match(r'^[0-9]+$', s))
+            if 'symbol' in df.columns and 'listing_symbol' in df.columns:
+                sample = df['symbol'].head(5).tolist()
+                if sample and all(_looks_numeric_symbol(x) for x in sample):
+                    df['symbol'] = df['listing_symbol']
+        except Exception:
+            pass
+        # Build map
+        def pick(row, cands):
+            for c in cands:
+                if c in row and row[c] is not None and not (isinstance(row[c], float) and np.isnan(row[c])):
+                    return row[c]
+            return None
+        dbg_enabled = (request.args.get('debug','0') == '1')
+        dbg = { 'syms': syms[:10], 'frames': len(frames), 'df_len': int(getattr(df, 'shape', [0])[0]) }
+        dbg['df_cols'] = [str(c) for c in list(df.columns)[:40]]
+        rows = df.to_dict(orient='records')
+        if dbg_enabled and rows:
+            dbg['sample_keys'] = list(rows[0].keys())
+        # Build case-insensitive key maps to increase robustness
+        for idx, r in enumerate(rows):
+            # make a lower->actual map
+            key_map = {str(k).lower(): k for k in r.keys()}
+            keys_lower = list(key_map.keys())
+
+            def find_key(cands, contains=False):
+                for c in cands:
+                    lc = c.lower()
+                    if lc in key_map:
+                        return key_map[lc]
+                if contains:
+                    for k in keys_lower:
+                        if all(seg in k for seg in cands):
+                            return key_map[k]
+                return None
+
+            # symbol candidates
+            sym_key = find_key(['symbol','ticker','listing_symbol','listing_mapping_symbol'])
+            if not sym_key:
+                # try any key that contains 'ticker' or 'symbol'
+                for k in keys_lower:
+                    if (('ticker' in k) or ('symbol' in k) or ('code' in k)) and key_map[k]:
+                        sym_key = key_map[k]
+                        break
+            sym = r.get(sym_key) if sym_key else r.get('index')
+            if not sym:
+                # thử lấy từ listing_symbol nếu có
+                alt = find_key(['listing_symbol','listing_mapping_symbol'])
+                sym = r.get(alt) if alt else None
+                if not sym:
+                    continue
+            sym = str(sym).upper().strip()
+            # must contain at least one letter
+            import re as _re
+            if not _re.match(r'^(?=.*[A-Z])[A-Z0-9\.]+$', sym):
+                # nếu symbol hiện tại không hợp lệ, thử dùng listing_symbol
+                alt = find_key(['listing_symbol','listing_mapping_symbol'])
+                altv = str(r.get(alt) or '').upper().strip() if alt else ''
+                if alt and _re.match(r'^(?=.*[A-Z])[A-Z0-9\.]+$', altv):
+                    sym = altv
+                else:
+                    continue
+
+            # price-like keys
+            price_key = find_key(['match_price','price_match','last_price','last','close'])
+            if not price_key:
+                # try combined contains rules
+                for k in keys_lower:
+                    if ('price' in k and ('match' in k or 'last' in k)) or k == 'price':
+                        price_key = key_map[k]
+                        break
+            last = r.get(price_key) if price_key else None
+
+            # change absolute
+            chg_key = find_key(['change','price_change','diff'])
+            if not chg_key:
+                for k in keys_lower:
+                    if 'change' in k and 'percent' not in k:
+                        chg_key = key_map[k]
+                        break
+            chg = r.get(chg_key) if chg_key else None
+
+            # change percent
+            pct_key = find_key(['change_percent','price_change_percent','pct_change'])
+            if not pct_key:
+                for k in keys_lower:
+                    if 'change' in k and 'percent' in k:
+                        pct_key = key_map[k]
+                        break
+            pct = r.get(pct_key) if pct_key else None
+
+            # volume
+            vol_key = find_key(['match_volume','volume_match','volume','matched_volume','total_volume','qtty','qty'])
+            if not vol_key:
+                for k in keys_lower:
+                    if (('volume' in k) or ('qtty' in k) or ('qty' in k)) and (('match' in k) or ('total' in k) or ('matched' in k) or k in ('volume','qtty','qty')):
+                        vol_key = key_map[k]
+                        break
+            vol = r.get(vol_key) if vol_key else None
+
+            out[sym] = {
+                'lastPrice': last if last is not None else None,
+                'priceChange': chg if chg is not None else None,
+                'priceChangePercent': pct if pct is not None else None,
+                'matchQtty': vol if vol is not None else None,
+            }
+            if dbg_enabled and idx < 3:
+                dbg.setdefault('rows', []).append({
+                    'sym_key': sym_key,
+                    'price_key': price_key,
+                    'chg_key': chg_key,
+                    'pct_key': pct_key,
+                    'vol_key': vol_key,
+                    'keys': list(r.keys())[:25]
+                })
+        # short cache to reduce repeated heavy calls
+        # If mapping yields empty but df has obvious columns, try simple fallback
+        if not out and len(df) > 0:
+            sym_col = None
+            for c in ['symbol','ticker','listing_symbol','listing_mapping_symbol']:
+                if c in df.columns:
+                    sym_col = c; break
+            price_col = None
+            for c in ['match_price','price_match','last_price','last','close','price','match_match_price','match_avg_match_price','match_open_price']:
+                if c in df.columns:
+                    price_col = c; break
+            vol_col = None
+            for c in ['match_volume','volume_match','matched_volume','total_volume','volume','qtty','qty','match_accumulated_volume']:
+                if c in df.columns:
+                    vol_col = c; break
+            if sym_col is not None:
+                for _, r in df.iterrows():
+                    sym = str(r.get(sym_col) or '').upper().strip()
+                    if not sym and 'listing_symbol' in df.columns:
+                        sym = str(r.get('listing_symbol') or '').upper().strip()
+                    if not sym:
+                        continue
+                    if not _re.match(r'^(?=.*[A-Z])[A-Z0-9\.]+$', sym):
+                        continue
+                    out[sym] = {
+                        'lastPrice': r.get(price_col) if price_col else None,
+                        'priceChange': None,
+                        'priceChangePercent': None,
+                        'matchQtty': r.get(vol_col) if vol_col else None,
+                    }
+                if dbg_enabled:
+                    dbg['fallback_used'] = True
+        try:
+            cache.set(cache_key, out, ttl=15)
+        except Exception:
+            pass
+        if dbg_enabled:
+            return jsonify({"data": out, "debug": dbg})
+        return jsonify({"data": out})
+    except Exception as e:
+        return jsonify({"error": str(e), "data": out}), 500
+
+
+def _cp68_download_zip(scope: str, insecure: bool = False):
+    try:
+        import requests  # type: ignore
+    except Exception:
+        return None, "requests not available"
+    t = 'all' if scope == 'all' else 'last'
+    url = f"https://www.cophieu68.vn/download/_amibroker.php?type={t}"
+    headers = {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        'Accept': '*/*',
+        'Referer': 'https://www.cophieu68.vn/download/ami.php',
+        'Accept-Language': 'vi-VN,vi;q=0.9,en-US;q=0.8,en;q=0.7',
+    }
+    try:
+        resp = requests.get(url, headers=headers, timeout=90, verify=not insecure, allow_redirects=True)
+        resp.raise_for_status()
+        return resp.content, None
+    except Exception as e:
+        return None, str(e)
+
+def _cp68_parse_txt_from_zip(raw_zip_bytes: bytes):
+    try:
+        zf = zipfile.ZipFile(io.BytesIO(raw_zip_bytes))
+        txt_name = None
+        for n in zf.namelist():
+            if n.lower().endswith('.txt'):
+                txt_name = n
+                break
+        if not txt_name:
+            return None, "No TXT file in ZIP"
+        with zf.open(txt_name, 'r') as f:
+            raw = f.read()
+        try:
+            text = raw.decode('utf-8')
+        except Exception:
+            text = raw.decode('latin-1')
+        return text, None
+    except Exception as e:
+        return None, str(e)
+
+@app.route('/api/cp68/eod/export', methods=['POST','GET'])
+def api_cp68_eod_export():
+    """Build a local dataset from CoPhieu68 EOD ZIP."""
+    
+    # --- BẮT ĐẦU SỬA LỖI ---
+    # Lấy dữ liệu từ JSON body nếu là POST, hoặc từ URL params nếu là GET
+    if request.is_json:
+        data = request.get_json() or {}
+    else:
+        data = request.values or {}
+        
+    scope = (data.get('scope') or 'last').lower()
+    base = data.get('base') or str(Path(__file__).resolve().parent / 'dataset')
+    mode = (data.get('mode') or 'append').lower()
+    insecure = str(data.get('insecure', '0')) == '1'
+    fmt = (data.get('format') or 'parquet').lower()
+    # --- KẾT THÚC SỬA LỖI ---
+
+    if fmt != 'parquet':
+        return jsonify({"error": "Only parquet is supported for export"}), 400
+
+    raw, err = _cp68_download_zip(scope, insecure)
+    if err:
+        return jsonify({"error": f"Download failed: {err}"}), 502
+    text, perr = _cp68_parse_txt_from_zip(raw)
+    if perr:
+        return jsonify({"error": f"Unzip failed: {perr}"}), 500
+
+    lines = [ln.strip() for ln in text.splitlines() if ln.strip()]
+    if lines and lines[0].lower().startswith('<ticker>'):
+        lines = lines[1:]
+    rows = []
+    for ln in lines:
+        parts = ln.split(',')
+        if len(parts) < 7:
+            continue
+        sym = parts[0].strip().upper()
+
+        # --- BẮT ĐẦU NÂNG CẤP (PHIÊN BẢN MỚI) ---
+        original_sym = parts[0].strip().upper() # Giữ lại tên gốc để kiểm tra
+        sym = original_sym
+        symbol_type = 'STOCK' # Mặc định là cổ phiếu
+
+        if original_sym.startswith('^'):
+            sym = original_sym[1:] # Bỏ dấu '^' cho tên mã sạch
+            if 'INDEX' in sym or sym in ['VN30', 'HNX30', 'UPCOM', 'HASTC']:
+                symbol_type = 'INDEX'
+            else:
+                symbol_type = 'SECTOR'
+        # --- KẾT THÚC NÂNG CẤP ---
+
+        yyyymmdd = parts[1].strip()
+        if yyyymmdd == '00000000':
+            continue
+        try:
+            dt = datetime.strptime(yyyymmdd, '%Y%m%d').date().isoformat()
+        except Exception:
+            continue
+        try:
+            o = float(parts[2]); h = float(parts[3]); l = float(parts[4]); c = float(parts[5])
+        except Exception:
+            o = h = l = c = None
+        try:
+            v = int(float(parts[6]))
+        except Exception:
+            v = None
+        rows.append({
+            'symbol': sym, 'date': dt, 'open': o, 'high': h, 'low': l, 'close': c, 'volume': v, 'type': symbol_type
+        })
+
+    try:
+        import pandas as _pd
+    except Exception as e:
+        return jsonify({"error": f"pandas required: {e}"}), 500
+    Path(base).mkdir(parents=True, exist_ok=True)
+    df_all = _pd.DataFrame(rows)
+    if df_all.empty:
+        return jsonify({"ok": True, "written": 0, "base": base})
+
+    written = 0
+    errors = {}
+    for sym, df in df_all.groupby('symbol'):
+        out_dir = Path(base) / sym
+        out_dir.mkdir(parents=True, exist_ok=True)
+        out_file = out_dir / 'D.parquet'
+        try:
+            if out_file.exists() and mode == 'append':
+                try:
+                    old = _pd.read_parquet(out_file)
+                    df = _pd.concat([old, df], ignore_index=True)
+                except Exception:
+                    pass
+            if 'date' in df.columns:
+                df = df.drop_duplicates(subset=['date']).sort_values('date')
+            try:
+                df.to_parquet(out_file, index=False)
+            except Exception as e:
+                try:
+                    df.to_csv(out_dir / 'D.csv', index=False)
+                    errors[str(sym)] = f"parquet failed, wrote CSV instead: {e}"
+                except Exception as e2:
+                    errors[str(sym)] = f"write failed: parquet error {e}; csv error {e2}"
+                    continue
+            written += 1
+        except Exception as e:
+            errors[str(sym)] = str(e)
+
+    # --- BẮT ĐẦU THÊM MÃ TẠO MANIFEST ---
+    try:
+        manifest_data = df_all[['symbol', 'type']].drop_duplicates().to_dict(orient='records')
+        manifest_path = Path(base) / '_manifest.json'
+        with open(manifest_path, 'w', encoding='utf-8') as f:
+            import json
+            json.dump(manifest_data, f, ensure_ascii=False, indent=2)
+        print(f"Đã tạo manifest thành công tại: {manifest_path}")
+    except Exception as e:
+        print(f"Lỗi khi tạo manifest: {e}")
+    # --- KẾT THÚC THÊM MÃ TẠO MANIFEST ---
+
+    return jsonify({"ok": True, "written": written, "base": base, "errors": errors})
+
+@app.route('/api/dataset/symbols')
+def api_dataset_symbols():
+    """List symbols available under dataset base.
+    Query: base (default: backend/dataset)
+    """
+    base = request.args.get('base') or str(Path(__file__).resolve().parent / 'dataset')
+    p = Path(base)
+    if not p.exists():
+        return jsonify({"symbols": []})
+    syms = []
+    for child in p.iterdir():
+        if child.is_dir() and ((child / 'D.parquet').exists() or (child / 'D.csv').exists()):
+            syms.append(child.name)
+    syms.sort()
+    return jsonify({"symbols": syms, "base": base})
+
+@app.route('/api/dataset/candles')
+def api_dataset_candles():
+    symbol = (request.args.get('symbol') or '').strip().upper()
+    if not symbol:
+        return jsonify({"error": "symbol is required"}), 400
+    
+    base = request.args.get('base') or str(Path(__file__).resolve().parent / 'dataset')
+    f_parquet = Path(base) / symbol / 'D.parquet'
+    f_csv = Path(base) / symbol / 'D.csv'
+
+    print(f"\n--- BẮT ĐẦU GỠ LỖI cho /api/dataset/candles ---")
+    print(f"Mã yêu cầu: {symbol}")
+    print(f"Đường dẫn file Parquet: {f_parquet}")
+
+    if not f_parquet.exists() and not f_csv.exists():
+        print(f"-> KẾT QUẢ: Không tìm thấy file cho mã {symbol}. Trả về mảng rỗng.")
+        return jsonify([])
+
+    frm = request.args.get('from')
+    to = request.args.get('to')
+    limit = request.args.get('limit')
+
+    try:
+        import pandas as _pd
+        if f_parquet.exists():
+            print(f"Đang đọc file Parquet...")
+            df = _pd.read_parquet(f_parquet)
+        else:
+            print(f"Đang đọc file CSV...")
+            df = _pd.read_csv(f_csv)
+        
+        print(f"-> Đọc file thành công. Số dòng ban đầu: {len(df)}")
+        if not df.empty:
+            print(f"   Dữ liệu từ ngày {df['date'].min()} đến {df['date'].max()}")
+
+        # Lọc theo ngày
+        if frm:
+            df = df[df['date'] >= frm]
+            print(f"-> Sau khi lọc 'từ ngày' {frm}, còn lại: {len(df)} dòng")
+        if to:
+            df = df[df['date'] <= to]
+            print(f"-> Sau khi lọc 'đến ngày' {to}, còn lại: {len(df)} dòng")
+        
+        df = df.sort_values('date')
+
+        if limit:
+            try:
+                n = int(limit)
+                if n > 0:
+                    df = df.tail(n)
+                    print(f"-> Sau khi giới hạn {n} dòng, còn lại: {len(df)} dòng")
+            except Exception:
+                pass
+        
+        out = df[['date', 'open', 'high', 'low', 'close', 'volume']].to_dict(orient='records')
+        print(f"-> KẾT QUẢ CUỐI CÙNG: Trả về {len(out)} dòng dữ liệu.")
+        return jsonify(out)
+        
+    except Exception as e:
+        print(f"-> LỖI TRONG QUÁ TRÌNH XỬ LÝ: {e}")
+        return jsonify({"error": str(e)}), 500
+    
+@app.route('/api/dataset/symbols_with_type')
+def api_dataset_symbols_with_type():
+    """
+    Đọc và trả về danh sách các mã cùng với loại của chúng từ manifest.
+    """
+    base = request.args.get('base') or str(Path(__file__).resolve().parent / 'dataset')
+    manifest_path = Path(base) / '_manifest.json'
+
+    if not manifest_path.exists():
+        # Fallback: Tự quét thư mục nếu manifest không tồn tại (chậm hơn)
+        print("Cảnh báo: Không tìm thấy file _manifest.json. Đang quét thư mục...")
+        p = Path(base)
+        syms = []
+        if p.exists():
+            for child in p.iterdir():
+                if child.is_dir() and ((child / 'D.parquet').exists() or (child / 'D.csv').exists()):
+                    # Mặc định là STOCK nếu không có thông tin
+                    syms.append({'symbol': child.name, 'type': 'STOCK'})
+        return jsonify(syms)
+
+    try:
+        with open(manifest_path, 'r', encoding='utf-8') as f:
+            import json
+            data = json.load(f)
+        return jsonify(data)
+    except Exception as e:
+        return jsonify({"error": f"Không thể đọc file manifest: {e}"}), 500
+    
 if __name__ == '__main__':
     app.run(debug=True, port=5000)
 

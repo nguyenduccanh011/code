@@ -1,110 +1,62 @@
-# Ứng dụng biểu đồ & phân tích chứng khoán Việt Nam
+# Algo Dashboard (VN)
 
-Ứng dụng web hiển thị biểu đồ thời gian thực, chỉ báo kỹ thuật, công cụ phân tích, backtest chiến lược và bộ lọc cổ phiếu cho thị trường Việt Nam.
+Ứng dụng demo phân tích kỹ thuật + dữ liệu cơ bản chứng khoán Việt Nam. Gồm backend Python (Flask) và các trang HTML/JS thuần.
 
-## Tính năng chính
+## Chạy nhanh
 
-### Biểu đồ & dữ liệu
-- Biểu đồ nến với dữ liệu cập nhật
-- Hỗ trợ khung D/W/M
-- Tìm kiếm mã nhanh, thông tin OHLC
-- Tải dữ liệu lịch sử theo khoảng
-- Đồng bộ biểu đồ giữa các chỉ báo
-
-### Chỉ báo kỹ thuật
-- RSI, MACD, Bollinger Bands, SMA (9/20)
-
-### Chiến lược giao dịch
-- SMA crossover, tín hiệu mua/bán hiển thị trực quan
-- Bật/tắt chiến lược dễ dàng
-
-### Công cụ vẽ
-- Trendline kéo thả, chọn/sửa/xóa linh hoạt
-
-### Giao diện
-- Sidebar thông tin, OHLC, responsive, theme tối/sáng
-
-## Cấu trúc dự án
-
+1) Cài đặt phụ thuộc Python
 ```
-index.html                 # Giao diện chính
-algo-list.html             # Danh sách chiến lược
-algo-detail.html           # Chi tiết chiến lược
-screener.html              # Bộ lọc cổ phiếu
-price-board.html           # Bảng giá
-config.js                  # Cấu hình API (runtime)
-css/                       # Style/UI
-src/                       # JavaScript modules (core, indicators, pages, tools)
-backend/                   # Python Flask API + backtesting
-docs/                      # Tài liệu (ROADMAP, WORKFLOW)
+pip install -r backend/requirements.txt
 ```
 
-Doc Map (điểm bắt đầu nhanh)
-- Quy trình & quy tắc: `AGENTS.md`
-- Cách làm việc chi tiết (DoD/AC/Issues): `docs/WORKFLOW.md`
-- Quy ước đóng góp: `CONTRIBUTING.md`
-
-## Cài đặt & chạy
-
-### Yêu cầu
-- Python 3.10+
-- Node.js 18+ (tùy chọn cho test JS)
-- Trình duyệt hiện đại
-
-### Chạy backend (dev)
-```bash
-cd backend
-pip install -r requirements.txt
-python server.py
+2) Chạy server hợp nhất (backend + proxy) trên cổng 5000
 ```
-Backend chạy tại `http://127.0.0.1:5000`
-
-### Chạy frontend (dev)
-```bash
-python -m http.server 8000
-# hoặc mở trực tiếp index.html
-```
-Frontend tại `http://localhost:8000`
-
-### Cấu hình API (config.js)
-Trong môi trường dev (không proxy same-origin), đặt:
-```html
-<script>
-  window.API_BASE_URL = 'http://127.0.0.1:5000';
-  // Nếu dùng proxy same-origin: window.API_BASE_URL = '';
-  // (file config.js đã được nhúng trong các trang HTML)
-</script>
+npm run start:combined
+# hoặc: python backend/serve.py
 ```
 
-## API chính (Flask)
+3) Mở trang bất kỳ (đã có thanh điều hướng site‑nav ở đầu mỗi trang):
+- `index.html` (biểu đồ + chỉ báo)
+- `price-board.html` (bảng giá 3 sàn, nguồn VCBS qua proxy)
+- `cafef-realtime.html` (bảng realtime từ CafeF)
+- `screener.html` (bộ lọc cơ bản)
+- `industry-demo.html` (cổ phiếu theo ngành, tự nạp giá)
+- `company-profile.html`, `company-directory.html`, `api-demo.html`, `algo-*.html`…
 
-| Endpoint | Method | Mô tả |
-|----------|--------|-------|
-| `/api/all_companies` | GET | Danh sách mã/symbol |
-| `/api/company_info?symbol=FPT` | GET | Thông tin công ty |
-| `/api/history?symbol=FPT&resolution=1D&from=YYYY-MM-DD&to=YYYY-MM-DD` | GET | Dữ liệu lịch sử |
-| `/api/screener?exchange=HOSE,HNX,UPCOM&limit=100&q=F` | GET | Bộ lọc nhanh |
-| `/api/financials?symbol=FPT&statement=ratio&period=year&industry=true` | GET | Chỉ số/FS + ngành |
-| `/api/price_board?exchange=HOSE&limit=100` | GET | Bảng giá chuẩn hóa |
-| `/api/backtest` | POST | Chạy backtest (JSON config) |
+Ghi chú: frontend mặc định dùng `API_PROXY_BASE = http://127.0.0.1:5000`. Có thể override tạm bằng:
+```
+localStorage.setItem('API_PROXY_BASE','http://127.0.0.1:5000')
+```
 
-## Công nghệ sử dụng
+## Scripts hữu ích
+```
+npm test                # chạy JS tests + Python unit tests
+npm run start:server    # chỉ backend (5000)
+npm run start:proxy     # chỉ proxy (5050)
+npm run start:combined  # server hợp nhất (5000)
+```
 
-### Frontend
-- HTML5, CSS3 (Grid/Flexbox)
-- Vanilla JavaScript
-- Lightweight Charts
+## API chính
 
-### Backend
-- Flask, flask-cors
-- vnstock, pandas, numpy
+Tổng hợp đầy đủ ở `docs/API.md`. Một số route tiêu biểu:
+- Backend: `/api/screener`, `/api/history`, `/api/price_board`, `/api/market_data`
+- Nhóm ngành: `/api/industry/list|stocks|lastest` (có `debug=1`)
+- Proxy: `/api/proxy/vcbs/priceboard`, `/api/proxy/vnd/...`, `/api/proxy/cafef/...`, `/api/proxy/vietstock/...`, `/api/proxy/fireant/...`
+  - CoPhieu68: `/api/proxy/cp68/eod?scope=all|last` và `/api/cp68/eod/normalized?scope=all|last&symbols=...&from=...&to=...&format=json|parquet`
 
-### Kiến trúc
-- Modular, tách core/indicators/pages/tools
-- DataProvider cấu hình runtime qua `config.js`
-- Cache file-based cho dữ liệu phổ biến
+## Kiến trúc & Ghi chú kỹ thuật
+- Server hợp nhất (`backend/serve.py`) định tuyến `/api/proxy/...` sang proxy và phần còn lại sang backend.
+- Chuẩn hóa giá VCBS: ưu tiên các cột `listing_symbol`, `match_avg_match_price`, `match_accumulated_volume` khi mapping.
+- Khi DataFrame từ `Trading.price_board` có cột MultiIndex: phẳng cột và `reset_index()`; nếu `symbol` là số và có `listing_symbol` → thay thế.
+- Auto‑load giá cho Industry Demo: sau khi tải danh sách mã, trang tự gọi `/api/industry/lastest` và render.
 
-## Phát triển
+## Roadmap
+Xem `docs/ROADMAP.md` (đã ghi lại các mốc đã hoàn thành và kế hoạch tiếp theo).
 
-- Chạy test: `node tests/run-js-tests.mjs` và `python -m unittest discover -s backend/tests`
-- Định dạng/chuẩn hóa UTF-8 (xem `.editorconfig`, `.gitattributes`)
+## Đóng góp
+- Viết rõ ràng, UTF‑8, có chú thích khi cần.
+- Tên file/hàm tiếng Anh, có thể chú thích tiếng Việt.
+- Chạy `npm test` trước khi commit.
+
+## Bản quyền
+Mã nguồn demo phục vụ mục đích học tập/nghiên cứu dữ liệu thị trường Việt Nam.
