@@ -9,6 +9,12 @@ This project follows the guidelines in AGENTS.md (Vietnamese). Below is a short 
 - Use the plan tool (update_plan) to outline steps for non-trivial tasks.
 - Before committing, run tests locally.
 
+## Quick Start for a New Session
+- Sync repo: `git fetch --all --prune && git pull`; check branch/status: `git branch -vv`, `git status`.
+- Ensure env: Python ≥ 3.10, Node ≥ 18; install deps if needed: `pip install -r backend/requirements.txt`, `npm ci`.
+- Smoke tests: `node tests/run-js-tests.mjs`, `python -m unittest discover -s backend/tests -p "test_*.py"`.
+- Run combined server: `npm run start:combined` (or `python backend/serve.py`).
+
 ## Directory Structure
 - `backend/`: server-side Python and helper scripts.
 - `src/`: main frontend code (core, indicators, pages, tools, utils).

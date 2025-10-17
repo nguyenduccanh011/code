@@ -23,9 +23,9 @@ npm run start:combined
 - `industry-demo.html` (cổ phiếu theo ngành, tự nạp giá)
 - `company-profile.html`, `company-directory.html`, `api-demo.html`, `algo-*.html`…
 
-Ghi chú: frontend mặc định dùng `API_PROXY_BASE = http://127.0.0.1:5000`. Có thể override tạm bằng:
+Ghi chú: frontend dùng chuẩn `API_BASE_URL` (alias cũ `API_PROXY_BASE`). Mặc định dev: `http://127.0.0.1:5000`. Có thể override tạm bằng:
 ```
-localStorage.setItem('API_PROXY_BASE','http://127.0.0.1:5000')
+localStorage.setItem('API_BASE_URL','http://127.0.0.1:5000')
 ```
 
 ## Scripts hữu ích
@@ -34,7 +34,23 @@ npm test                # chạy JS tests + Python unit tests
 npm run start:server    # chỉ backend (5000)
 npm run start:proxy     # chỉ proxy (5050)
 npm run start:combined  # server hợp nhất (5000)
+npm run dev             # Vite dev server cho MPA (http://localhost:5173)
+npm run build           # build MPA vào thư mục dist/
+npm run preview         # preview bản build tại http://localhost:4173
 ```
+
+## Build/Dev với Vite (MPA)
+- Không thay đổi hành vi hiện tại; các trang HTML gốc vẫn chạy trực tiếp.
+- Dùng Vite cho phát triển/bundle: code‑split, cache‑busting, alias `@src`.
+- Các trang đầu vào đã khai báo trong `vite.config.js` (MPA inputs).
+- Chạy dev: `npm run dev` → mở trang tương ứng tại `http://localhost:5173/<page>.html`.
+- Build: `npm run build` → sản phẩm tại `dist/` (có thể deploy tĩnh sau Nginx).
+
+## Bắt đầu phiên làm việc nhanh
+- Đồng bộ repo: `git fetch --all --prune && git pull`; kiểm tra nhánh/trạng thái: `git branch -vv`, `git status`.
+- Đảm bảo môi trường: Python ≥ 3.10, Node ≥ 18; cài deps nếu cần: `pip install -r backend/requirements.txt`, `npm ci`.
+- Smoke tests: `node tests/run-js-tests.mjs`, `python -m unittest discover -s backend/tests -p "test_*.py"`.
+- Chạy server: `npm run start:combined` (hoặc `python backend/serve.py`).
 
 ## API chính
 

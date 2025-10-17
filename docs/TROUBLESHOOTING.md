@@ -33,3 +33,7 @@ Concise tips to resolve common local issues. Keep docs UTF-8 (no BOM) and LF lin
   - Ensure `backend/serve.py` is running (combined server).
   - Check browser console network tab and server logs for failing routes.
 
+- Missing Unix tools on Windows
+  - `sed`/`grep` not available by default. Use PowerShell equivalents:
+    - Read file: `Get-Content -Encoding UTF8 <path>`; search: `Select-String -Pattern <text> <path>`.
+    - Prefer `rg` (ripgrep) if installed: faster recursive search.

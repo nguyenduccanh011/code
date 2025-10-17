@@ -6,9 +6,12 @@
   "scripts": {
     "test": "npm run test:js && npm run test:py",
     "test:js": "node tests/run-js-tests.mjs",
-    "test:py": "python -m unittest discover -s backend/tests -p 'test_*.py'",
+    "test:py": "python -m unittest discover -s backend/tests -p \"test_*.py\"",
     "start:server": "python backend/server.py",
     "start:proxy": "python backend/proxy_server.py",
-    "start:combined": "python backend/serve.py"
+    "start:combined": "python backend/serve.py",
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview --port 4173"
   }
 }

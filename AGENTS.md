@@ -17,7 +17,7 @@ Tài liệu này đưa ra hướng dẫn cho các tác nhân làm việc trong k
 ## Cách chạy nhanh (dev)
 - Cài đặt Python deps: `pip install -r backend/requirements.txt`
 - Chạy server hợp nhất: `npm run start:combined` (hoặc `python backend/serve.py`)
-- Frontend mặc định dùng `API_PROXY_BASE = http://127.0.0.1:5000`; có thể override bằng localStorage khi cần.
+ - Frontend dùng chuẩn `API_BASE_URL = http://127.0.0.1:5000` (alias cũ `API_PROXY_BASE`); có thể override bằng localStorage khi cần.
 
 ## Ghi chú mới
 - Đã thêm thanh điều hướng dùng chung (site‑nav) cho tất cả trang.
@@ -32,3 +32,10 @@ Tài liệu này đưa ra hướng dẫn cho các tác nhân làm việc trong k
 
 ## Liên hệ
 Mọi thắc mắc hoặc đề xuất có thể ghi trực tiếp vào issue trong repository.
+
+## Bắt đầu phiên (nhanh)
+- Đồng bộ repo: `git fetch --all --prune && git pull`; kiểm tra `git branch -vv`, `git status`.
+- Kiểm tra môi trường: Python ≥ 3.10, Node ≥ 18; cài deps nếu cần: `pip install -r backend/requirements.txt`, `npm ci`.
+- Chạy smoke tests: `node tests/run-js-tests.mjs`, `python -m unittest discover -s backend/tests -p "test_*.py"`.
+- Khởi chạy nhanh: `npm run start:combined` (hoặc `python backend/serve.py`).
+- Frontend base URL: mặc định `http://127.0.0.1:5000` (override qua `localStorage` khi cần).

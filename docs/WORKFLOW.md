@@ -12,6 +12,14 @@ Tài liệu này mô tả cách chúng ta làm việc để dự án trơn tru, 
 - Luôn có đúng 1 bước `in_progress`.
 - Khi thay đổi kế hoạch, nêu lý do trong `explanation`.
 
+## Triage theo vòng lặp (One issue at a time)
+- Chỉ xử lý một vấn đề tại một thời điểm để giữ phạm vi gọn.
+- Mỗi vấn đề: làm rõ nhanh (1–2 câu hỏi), xác nhận phạm vi/AC trước khi sửa.
+- Cập nhật `update_plan`: thêm 1 bước cho vấn đề đang làm và đặt `in_progress`.
+- Thực hiện thay đổi tối thiểu, không gộp việc không liên quan; commit nhỏ, rõ mục đích.
+- Kiểm thử đúng phạm vi; xong thì đánh dấu `completed` và nêu Quick verify.
+- Phát sinh việc mới: thêm bước mới kèm lý do thay đổi; cân nhắc tạo Issue riêng và liên kết.
+
 ## 3. Thực hiện
 - Nhỏ gọn, đúng phạm vi; không thay đổi không liên quan.
 - Cố gắng sửa tận gốc thay vì vá bề mặt khi hợp lý.
@@ -53,10 +61,14 @@ Tài liệu này mô tả cách chúng ta làm việc để dự án trơn tru, 
 - Vẫn tuân thủ DoD/AC và Handoff khi đổi phiên.
 
 ## Session Start Checklist
-- `git status` → xem thay đổi cục bộ
-- `git branch -a` → biết các nhánh hiện có
-- `git fetch --all && git pull` → đồng bộ trước khi làm
-- Xác nhận nhánh/Scope phiên làm việc; đọc Handoff Summary (nếu có)
+- Đồng bộ repo: `git fetch --all --prune && git pull`
+- Kiểm tra nhánh & trạng thái: `git branch -vv`, `git status`
+- Xác nhận phiên làm việc: nhánh/Scope, đọc Handoff Summary (nếu có)
+- Môi trường: Python ≥ 3.10, Node ≥ 18 (xem Troubleshooting nếu lỗi ESM/Python)
+- Cài deps khi cần: `pip install -r backend/requirements.txt`, `npm ci` (nếu `package.json` thay đổi)
+- Smoke tests nhanh: `node tests/run-js-tests.mjs`, `python -m unittest discover -s backend/tests -p "test_*.py"`
+- Chạy server hợp nhất: `npm run start:combined` (hoặc `python backend/serve.py`)
+- Frontend base URL: mặc định `API_PROXY_BASE = http://127.0.0.1:5000` (có thể override bằng `localStorage.setItem('API_PROXY_BASE','http://127.0.0.1:5000')`)
 
 ---
 
