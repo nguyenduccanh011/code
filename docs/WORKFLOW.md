@@ -116,3 +116,16 @@ Use the Clarification Issue template if any of the above is unknown.
 - Update the Issue description if key Decisions change (who/what/when/why).
 - If splitting work, create a “Continuation” Issue and link both ways.
 - In PR, include “Handoff Summary” and “Follow-ups” (Issue links) when applicable.
+
+See also: `docs/HANDOFF.md` for a concise, copy‑pasteable template used across sessions.
+
+## Onboarding Path (quick)
+- Start with `docs/README.md` (Documentation Index)
+- Read: `AGENTS.md`, `docs/WORKFLOW.md`, `docs/ROADMAP.md`, `docs/PROJECT_PLAN.md`
+- For production work, review `docs/PRODUCTION_READINESS.md`
+
+## Frontend Commands (MPA)
+- Dev: `npm run dev` (Vite root at `frontend/apps/web`)
+- Build: `npm run build` → `frontend/dist`
+- Preview: `npm run preview` → open `http://localhost:4173/<page>.html`
+- API base: set `VITE_API_BASE_URL` or override via `localStorage.setItem('API_BASE_URL','http://127.0.0.1:5000')`

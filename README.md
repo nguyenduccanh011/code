@@ -1,82 +1,111 @@
 # Algo Dashboard (VN)
 
-Ứng dụng demo phân tích kỹ thuật + dữ liệu cơ bản chứng khoán Việt Nam. Gồm backend Python (Flask) và các trang HTML/JS thuần.
+Ứng dụng phân tích kỹ thuật và theo dõi thị trường chứng khoán Việt Nam. Dự án bắt đầu như một demo phục vụ học tập/nghiên cứu, hiện đang được định hướng để vận hành thực tế: code sạch, nhanh, an toàn, và dễ mở rộng.
 
-## Chạy nhanh
+## Onboarding / Required Reading (đọc trước khi bắt đầu)
+- AGENTS: mục tiêu, quy tắc, hướng dẫn — `AGENTS.md`
+- Workflow: quy trình làm việc, DoD/AC, kiểm thử — `docs/WORKFLOW.md`
+- Roadmap: trạng thái và kế hoạch — `docs/ROADMAP.md`
+- Project Plan (MVP): phạm vi, ưu tiên — `docs/PROJECT_PLAN.md`
+- API: tổng quan backend/proxy — `docs/API.md`
+- API Sources: nguồn dữ liệu bên ngoài — `docs/API_SOURCES.md`
+- Troubleshooting: xử lý sự cố môi trường/dev — `docs/TROUBLESHOOTING.md`
+- Contributing (EN): tóm tắt quy tắc đóng góp — `CONTRIBUTING.md`
+- Docs Index — `docs/README.md`
 
-1) Cài đặt phụ thuộc Python
+## Yêu cầu môi trường
+- Python ≥ 3.10 (3.13 OK)
+- Node ≥ 18 (22 OK)
+
+## Cài đặt nhanh
+1) Python deps
 ```
 pip install -r backend/requirements.txt
 ```
-
-2) Chạy server hợp nhất (backend + proxy) trên cổng 5000
+2) Node deps (tại repo root)
 ```
-npm run start:combined
-# hoặc: python backend/serve.py
+npm ci
+# nếu lần đầu chưa có lockfile: npm install
 ```
 
-3) Mở trang bất kỳ (đã có thanh điều hướng site‑nav ở đầu mỗi trang):
-- `index.html` (biểu đồ + chỉ báo)
-- `price-board.html` (bảng giá 3 sàn, nguồn VCBS qua proxy)
-- `cafef-realtime.html` (bảng realtime từ CafeF)
-- `screener.html` (bộ lọc cơ bản)
-- `industry-demo.html` (cổ phiếu theo ngành, tự nạp giá)
-- `company-profile.html`, `company-directory.html`, `api-demo.html`, `algo-*.html`…
+## Chạy nhanh (dev)
+- Backend (server hợp nhất, port 5000)
+```
+python backend/serve.py
+```
+- Frontend (Vite MPA, port 5173)
+  - PowerShell có thể chặn npm.ps1 — dùng CMD shim:
+```
+cmd /c npm run dev
+# hoặc: npm.cmd run dev
+```
+- Mở trang:
+  - http://localhost:5173/index.html
+  - Các trang khác: /price-board.html, /screener.html, /cafef-realtime.html, /industry-demo.html, /company-profile.html, /algo-list.html, /algo-detail.html, /cp68-stable.html
 
-Ghi chú: frontend dùng chuẩn `API_BASE_URL` (alias cũ `API_PROXY_BASE`). Mặc định dev: `http://127.0.0.1:5000`. Có thể override tạm bằng:
+## Cấu trúc dự án (rút gọn)
+- `backend/` — Flask API + proxy; `serve.py` gộp cả hai trên 5000
+- `frontend/apps/web/` — toàn bộ HTML/CSS/JS (MPA) đã được di chuyển vào đây
+- `docs/` — tài liệu dự án (workflow, roadmap, production readiness…)
+- `tests/` — script test JS và Python
+
+## Frontend (MPA) — Layout & Lệnh
+- Layout: toàn bộ HTML/CSS/JS nằm trong `frontend/apps/web`
+- Lệnh (tại repo root):
+```
+npm run dev       # Vite dev server (http://localhost:5173)
+npm run build     # bundle ra frontend/dist
+npm run preview   # preview bản build (http://localhost:4173)
+```
+- Cấu hình API base:
+  - Qua env khi chạy dev build: `VITE_API_BASE_URL=http://127.0.0.1:5000`
+    - PowerShell: `$env:VITE_API_BASE_URL='http://127.0.0.1:5000'; npm.cmd run dev`
+    - CMD: `set VITE_API_BASE_URL=http://127.0.0.1:5000 && npm run dev`
+  - Hoặc override tạm thời trên trình duyệt dev:
 ```
 localStorage.setItem('API_BASE_URL','http://127.0.0.1:5000')
 ```
 
+## Backend — Health, CORS, Rate limit
+- Health endpoints
+  - Core API: `GET /health` → `{ "ok": true }`
+  - Proxy: `GET /api/proxy/health` (và `/health`) → `{ "ok": true }`
+- CORS whitelist qua env `ALLOWED_ORIGINS` (CSV)
+  - Ví dụ cho dev: `http://localhost:5173,http://127.0.0.1:5173`
+- Rate limiting (in‑memory, 60s window)
+  - `RATE_LIMIT_PER_MINUTE` (mặc định 60)
+  - Áp dụng cho: `/api/price_board`, `/api/industry/lastest`, `/api/history`, `/api/screener` và toàn bộ `/api/proxy/*`
+  - Hết hạn mức trả 429 + `Retry-After`
+- Biến môi trường khác
+  - `REQUEST_TIMEOUT_SECONDS` — timeout request outbound (mặc định 15)
+  - `PROXY_HOST_ALLOWLIST` — (dự phòng) allowlist host cho proxy
+- Mẫu `.env`: xem `.env.example`
+
 ## Scripts hữu ích
 ```
 npm test                # chạy JS tests + Python unit tests
-npm run start:server    # chỉ backend (5000)
-npm run start:proxy     # chỉ proxy (5050)
-npm run start:combined  # server hợp nhất (5000)
-npm run dev             # Vite dev server cho MPA (http://localhost:5173)
-npm run build           # build MPA vào thư mục dist/
-npm run preview         # preview bản build tại http://localhost:4173
+npm run start:server    # chạy backend đơn (5000)
+npm run start:proxy     # chạy proxy đơn (5050)
+npm run start:combined  # chạy hợp nhất (5000)
 ```
 
-## Build/Dev với Vite (MPA)
-- Không thay đổi hành vi hiện tại; các trang HTML gốc vẫn chạy trực tiếp.
-- Dùng Vite cho phát triển/bundle: code‑split, cache‑busting, alias `@src`.
-- Các trang đầu vào đã khai báo trong `vite.config.js` (MPA inputs).
-- Chạy dev: `npm run dev` → mở trang tương ứng tại `http://localhost:5173/<page>.html`.
-- Build: `npm run build` → sản phẩm tại `dist/` (có thể deploy tĩnh sau Nginx).
+## Gợi ý quy trình làm việc
+- Đồng bộ repo: `git fetch --all --prune && git pull`; kiểm tra: `git branch -vv`, `git status`
+- Cài deps: `pip install -r backend/requirements.txt`, `npm ci`
+- Smoke tests: `node tests/run-js-tests.mjs`, `python -m unittest discover -s backend/tests -p "test_*.py"`
+- Chạy server hợp nhất: `python backend/serve.py`
+- Chạy frontend dev: `cmd /c npm run dev`
 
-## Bắt đầu phiên làm việc nhanh
-- Đồng bộ repo: `git fetch --all --prune && git pull`; kiểm tra nhánh/trạng thái: `git branch -vv`, `git status`.
-- Đảm bảo môi trường: Python ≥ 3.10, Node ≥ 18; cài deps nếu cần: `pip install -r backend/requirements.txt`, `npm ci`.
-- Smoke tests: `node tests/run-js-tests.mjs`, `python -m unittest discover -s backend/tests -p "test_*.py"`.
-- Chạy server: `npm run start:combined` (hoặc `python backend/serve.py`).
+## Troubleshooting nhanh (Windows)
+- PowerShell chặn npm.ps1: dùng `cmd /c npm run <script>` hoặc `npm.cmd <script>`
+- UTF‑8: dùng `chcp 65001` hoặc `Get-Content -Encoding UTF8`; đảm bảo `<meta charset="UTF-8">`
+- Cổng bận (5000/5050): `netstat -ano | findstr :5000` + `taskkill /PID <pid> /F`
+- Base URL sai: đặt lại `VITE_API_BASE_URL` hoặc `localStorage` như trên
 
-## API chính
+## Tài liệu liên quan
+- Kế hoạch chuyển Frontend (B – workspace‑ready): `docs/FRONTEND_RESTRUCTURE.md`
+- Production Readiness checklist: `docs/PRODUCTION_READINESS.md`
 
-Tổng hợp đầy đủ ở `docs/API.md`. Một số route tiêu biểu:
-- Backend: `/api/screener`, `/api/history`, `/api/price_board`, `/api/market_data`
-- Nhóm ngành: `/api/industry/list|stocks|lastest` (có `debug=1`)
-- Proxy: `/api/proxy/vcbs/priceboard`, `/api/proxy/vnd/...`, `/api/proxy/cafef/...`, `/api/proxy/vietstock/...`, `/api/proxy/fireant/...`
-  - CoPhieu68: `/api/proxy/cp68/eod?scope=all|last` và `/api/cp68/eod/normalized?scope=all|last&symbols=...&from=...&to=...&format=json|parquet`
+## Ghi chú
+- Mục tiêu tiếp theo: `/api/v1` + OpenAPI nháp, ETag/TTL cho endpoints nhiều lượt gọi, siết proxy allowlist, lint/format & hooks.
 
-## Kiến trúc & Ghi chú kỹ thuật
-- Server hợp nhất (`backend/serve.py`) định tuyến `/api/proxy/...` sang proxy và phần còn lại sang backend.
-- Chuẩn hóa giá VCBS: ưu tiên các cột `listing_symbol`, `match_avg_match_price`, `match_accumulated_volume` khi mapping.
-- Khi DataFrame từ `Trading.price_board` có cột MultiIndex: phẳng cột và `reset_index()`; nếu `symbol` là số và có `listing_symbol` → thay thế.
-- Auto‑load giá cho Industry Demo: sau khi tải danh sách mã, trang tự gọi `/api/industry/lastest` và render.
-
-## Roadmap
-Xem `docs/ROADMAP.md` (đã ghi lại các mốc đã hoàn thành và kế hoạch tiếp theo).
-
-## Đóng góp
-- Viết rõ ràng, UTF‑8, có chú thích khi cần.
-- Tên file/hàm tiếng Anh, có thể chú thích tiếng Việt.
-- Chạy `npm test` trước khi commit.
-
-## Bản quyền
-Mã nguồn demo phục vụ mục đích học tập/nghiên cứu dữ liệu thị trường Việt Nam.
- 
-## Troubleshooting
-- Xem hướng dẫn nhanh: `docs/TROUBLESHOOTING.md`.
-- Lưu ý UTF‑8 trên Windows (PowerShell dùng `Get-Content -Encoding UTF8` hoặc `chcp 65001`).
