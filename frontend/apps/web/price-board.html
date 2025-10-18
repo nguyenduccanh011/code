@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Bảng giá - 3 sàn</title>
+  <link rel="stylesheet" href="css/price-board.css" />
+  <link rel="stylesheet" href="css/site-nav.css" />
+  <script>
+    // Dùng cổng 5000 mặc định để chạy cùng server hợp nhất (backend/serve.py)
+    window.API_PROXY_BASE = localStorage.getItem('API_PROXY_BASE') || 'http://127.0.0.1:5000';
+  </script>
+  <style>
+    body.light { --bg:#f7fbff; --bg-soft:#e9f1f8; --fg:#0b2239; --muted:#47627a; --grid:#d0dbe4; }
+  </style>
+  <!-- Lưu ý: file này được lưu UTF-8 -->
+</head>
+<body>
+  <script src="src/ui/site-nav.js" defer></script>
+  <header class="pb-header">
+    <div class="pb-brand">
+      <div class="logo">CK</div>
+      <div class="title">Bảng giá - 3 sàn</div>
+    </div>
+    <div class="pb-controls">
+      <div class="control">
+        <label>Nguồn:</label>
+        <select id="pb-source">
+          <option value="vcbs" selected>VCBS</option>
+        </select>
+      </div>
+      <div class="control">
+        <label>Đơn vị KL:</label>
+        <select id="pb-unit-vol">
+          <option value="1">x1</option>
+          <option value="100">x100</option>
+          <option value="1000" selected>x1000</option>
+        </select>
+      </div>
+      <div class="control">
+        <label>Đơn vị giá trị:</label>
+        <select id="pb-unit-val">
+          <option value="1">x1</option>
+          <option value="1000" selected>x1000</option>
+          <option value="1000000">x1,000,000</option>
+        </select>
+      </div>
+      <div class="control">
+        <label>Realtime:</label>
+        <input type="checkbox" id="pb-realtime" checked />
+        <input type="number" id="pb-interval" min="1" value="6" />
+        <span class="suffix">giây</span>
+      </div>
+      <div class="control">
+        <label>Chế độ:</label>
+        <button id="pb-theme-toggle" class="btn">Màu tối</button>
+      </div>
+      <div class="control timestamp">
+        Đã cập nhật: <span id="pb-updated">--:--:--</span>
+      </div>
+    </div>
+  </header>
+
+  <main class="pb-main">
+    <div class="pb-table-wrap">
+      <table id="pb-table" class="pb-table">
+        <thead id="pb-thead"></thead>
+        <tbody id="pb-tbody"></tbody>
+      </table>
+      <div id="pb-loading" class="pb-loading" style="display:none;">Đang tải...</div>
+    </div>
+  </main>
+
+  <script src="src/pages/price-board.js" defer></script>
+</body>
+<!--
+  Ghi chú: trang này dùng proxy backend/proxy_server.py
+  Chạy: python backend/proxy_server.py, sau đó mở file này.
+-->
+</html>

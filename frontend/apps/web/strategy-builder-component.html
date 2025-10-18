@@ -1,0 +1,64 @@
+<!-- Strategy Builder Panel -->
+<div id="strategy-builder-panel" class="strategy-builder-panel" style="display: none;">
+    <div class="strategy-builder-header">
+        <h3>Strategy Builder</h3>
+        <button id="close-strategy-builder" class="close-btn">&times;</button>
+    </div>
+    <div class="strategy-builder-content">
+        <div class="strategy-name-section">
+            <label for="strategy-name">Tên chiến lược:</label>
+            <input type="text" id="strategy-name" placeholder="Nhập tên chiến lược..." value="SMA Crossover Strategy">
+        </div>
+
+        <div class="strategy-code-section">
+            <label for="strategy-code">Mã chứng khoán:</label>
+            <input type="text" id="strategy-code" placeholder="VD: FPT">
+        </div>
+
+        <div class="conditions-section">
+            <h4>Điều kiện mua (BUY):</h4>
+            <div id="buy-conditions" class="conditions-container">
+                <div class="condition-item">
+                    <select class="condition-type">
+                        <option value="sma-crossover">SMA Crossover</option>
+                        <option value="rsi">RSI</option>
+                        <option value="price">Giá</option>
+                    </select>
+                    <div class="condition-params">
+                        <input type="number" class="param-input" placeholder="9" min="1" max="100">
+                        <span>cắt lên</span>
+                        <input type="number" class="param-input" placeholder="20" min="1" max="100">
+                    </div>
+                    <button class="remove-condition-btn">&times;</button>
+                </div>
+            </div>
+            <button id="add-buy-condition" class="add-condition-btn">+ Thêm điều kiện</button>
+        </div>
+
+        <div class="conditions-section">
+            <h4>Điều kiện bán (SELL):</h4>
+            <div id="sell-conditions" class="conditions-container">
+                <div class="condition-item">
+                    <select class="condition-type">
+                        <option value="sma-crossover">SMA Crossover</option>
+                        <option value="rsi">RSI</option>
+                        <option value="price">Giá</option>
+                    </select>
+                    <div class="condition-params">
+                        <input type="number" class="param-input" placeholder="9" min="1" max="100">
+                        <span>cắt xuống</span>
+                        <input type="number" class="param-input" placeholder="20" min="1" max="100">
+                    </div>
+                    <button class="remove-condition-btn">&times;</button>
+                </div>
+            </div>
+            <button id="add-sell-condition" class="add-condition-btn">+ Thêm điều kiện</button>
+        </div>
+
+        <div class="strategy-actions">
+            <button id="test-strategy-btn" class="action-btn primary">Test Strategy</button>
+            <button id="save-strategy-btn" class="action-btn">Lưu Strategy</button>
+            <button id="load-strategy-btn" class="action-btn">Tải Strategy</button>
+        </div>
+    </div>
+</div>

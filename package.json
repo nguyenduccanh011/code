@@ -12,6 +12,12 @@
     "start:combined": "python backend/serve.py",
     "dev": "vite",
     "build": "vite build",
-    "preview": "vite preview --port 4173"
+    "preview": "vite preview --port 4173",
+    "frontend:dev": "vite",
+    "frontend:build": "vite build",
+    "frontend:preview": "vite preview --port 4173"
+  },
+  "devDependencies": {
+    "vite": "^7.1.10"
   }
 }
