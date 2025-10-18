@@ -1,5 +1,21 @@
 # AGENTS
 
+## Bắt đầu cho AI mới (bắt buộc đọc)
+
+- Đọc nhanh README (cách chạy/dev): `README.md`
+- Quy trình làm việc + DoD/AC/Issues: `docs/WORKFLOW.md`
+- Lộ trình/kế hoạch: `docs/ROADMAP.md`, `docs/PROJECT_PLAN.md`
+- API backend/proxy: `docs/API.md`, nguồn dữ liệu: `docs/API_SOURCES.md`
+- Xử lý sự cố môi trường/dev: `docs/TROUBLESHOOTING.md`
+- Quy tắc đóng góp (EN): `CONTRIBUTING.md`
+- Mục lục tài liệu: `docs/README.md`
+
+Ngay khi vào phiên mới:
+- Đồng bộ repo, kiểm tra nhánh/trạng thái (`git fetch --all --prune && git pull`, `git branch -vv`, `git status`).
+- Đảm bảo môi trường (Python ≥ 3.10, Node ≥ 18), cài deps nếu cần (`pip install -r backend/requirements.txt`, `npm ci`).
+- Chạy smoke tests: `node tests/run-js-tests.mjs`, `python -m unittest discover -s backend/tests -p "test_*.py"`.
+- Chạy server hợp nhất: `npm run start:combined` (hoặc `python backend/serve.py`).
+
 Tài liệu này đưa ra hướng dẫn cho các tác nhân làm việc trong kho mã.
 
 ## Mục tiêu dự án
