@@ -66,3 +66,6 @@ cache/
 backend/dataset/
 *.parquet
 *.csv
+
+# Windows special device filename accidentally created during PowerShell ops
+CON
