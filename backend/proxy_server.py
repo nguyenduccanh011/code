@@ -9,11 +9,51 @@ app = Flask(__name__)
 
 try:
     from flask_cors import CORS  # type: ignore
-
-    CORS(app)
+    # Read allowlist from env on the proxy side too (avoid import path issues)
+    import os as _os
+    _origins = [x.strip() for x in (_os.getenv('ALLOWED_ORIGINS') or '').split(',') if x.strip()]
+    if _origins:
+        CORS(app, origins=_origins, supports_credentials=True)
+    else:
+        CORS(app)
 except Exception:
     # CORS not critical; frontend can be served from same origin or adjust manually
     pass
+
+
+@app.route('/health', methods=['GET'])
+@app.route('/api/proxy/health', methods=['GET'])
+def health():
+    return jsonify({"ok": True}), 200
+
+
+# Simple per-IP rate limit for all proxy endpoints
+from collections import defaultdict, deque
+import time as _time
+
+_rate_hits = defaultdict(deque)
+_WINDOW = 60
+try:
+    _LIMIT = int((_os.getenv('RATE_LIMIT_PER_MINUTE') or '60'))
+except Exception:
+    _LIMIT = 60
+
+
+@app.before_request
+def _apply_rate_limit():
+    path = request.path or ''
+    if not path.startswith('/api/proxy'):
+        return None
+    ip = request.headers.get('X-Forwarded-For', request.remote_addr) or 'unknown'
+    key = (ip, path)
+    now = int(_time.time())
+    dq = _rate_hits[key]
+    while dq and now - dq[0] >= _WINDOW:
+        dq.popleft()
+    if len(dq) >= _LIMIT:
+        retry = _WINDOW - (now - dq[0]) if dq else _WINDOW
+        return jsonify({"error": "rate_limited", "retry_after": retry}), 429, {"Retry-After": str(max(1, retry))}
+    dq.append(now)
 
 @app.route('/api/proxy/cp68/eod', methods=['GET'])
 def proxy_cp68_eod():

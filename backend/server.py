@@ -217,7 +217,18 @@ class BacktestingEngine:
 app = Flask(__name__)
 # Ensure JSON responses are UTF-8 and not ASCII-escaped
 app.config['JSON_AS_ASCII'] = False
-CORS(app)
+
+# Configure CORS via env allowlist if provided
+try:
+    from backend import config as _cfg  # running via package path
+except Exception:
+    import importlib
+    _cfg = importlib.import_module('config')  # fallback when run from repo root
+
+if getattr(_cfg, 'ALLOWED_ORIGINS', []):
+    CORS(app, origins=_cfg.ALLOWED_ORIGINS, supports_credentials=True)
+else:
+    CORS(app)
 cache = CacheManager()
 
 print("Loading company list...")
@@ -1412,4 +1423,43 @@ if __name__ == '__main__':
 
 
 
+@app.route('/health', methods=['GET'])
+def health():
+    return jsonify({"ok": True}), 200
+
+
+# Simple in-memory rate limiter (per-IP, per-endpoint, 60s window)
+from collections import defaultdict, deque
+import time as _time
+
+_rate_hits = defaultdict(deque)  # key: (ip, key) -> deque[timestamps]
+_WINDOW = 60
+_LIMIT = int(getattr(_cfg, 'RATE_LIMIT_PER_MINUTE', 60) or 60)
+_LIMITED_PREFIXES = (
+    '/api/price_board',
+    '/api/industry/lastest',
+    '/api/history',
+    '/api/screener',
+)
+
+
+@app.before_request
+def _apply_rate_limit():
+    try:
+        path = request.path or ''
+        if not any(path.startswith(p) for p in _LIMITED_PREFIXES):
+            return None
+        ip = request.headers.get('X-Forwarded-For', request.remote_addr) or 'unknown'
+        key = (ip, path)
+        now = int(_time.time())
+        dq = _rate_hits[key]
+        # prune
+        while dq and now - dq[0] >= _WINDOW:
+            dq.popleft()
+        if len(dq) >= _LIMIT:
+            retry = _WINDOW - (now - dq[0]) if dq else _WINDOW
+            return jsonify({"error": "rate_limited", "retry_after": retry}), 429, {"Retry-After": str(max(1, retry))}
+        dq.append(now)
+    except Exception:
+        return None
 
